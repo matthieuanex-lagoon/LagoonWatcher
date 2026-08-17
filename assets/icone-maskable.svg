@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="LagoonWatcher">
+  <rect width="128" height="128" fill="#0d2b45"/>
+  <path d="M22 88c8-6 15-6 22 0s14 6 22 0 14-6 22 0" fill="none" stroke="#1baf7a" stroke-width="6" stroke-linecap="round"/>
+  <path d="M22 102c8-6 15-6 22 0s14 6 22 0 14-6 22 0" fill="none" stroke="#2a78d6" stroke-width="6" stroke-linecap="round"/>
+  <polyline points="30,64 46,52 60,59 76,38 94,45" fill="none" stroke="#fcfcfb" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="94" cy="45" r="7" fill="#eb6834" stroke="#0d2b45" stroke-width="3"/>
+</svg>

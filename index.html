@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="fr" data-theme="auto">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>LagoonWatcher — suivi perso</title>
+    <meta name="description" content="Mini application personnelle de suivi : calories, poids, activité, alcool et humeur. Données stockées uniquement sur l'appareil." />
+    <meta name="theme-color" content="#fcfcfb" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1a1a19" media="(prefers-color-scheme: dark)" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="assets/icone.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="assets/icone.svg" />
+    <link rel="stylesheet" href="assets/styles.css" />
+  </head>
+  <body>
+    <div class="enveloppe">
+      <header class="entete">
+        <div class="marque">🌊 LagoonWatcher <small>suivi perso</small></div>
+        <button class="bouton icone fantome pousse" id="bascule-theme" title="Changer de thème" aria-label="Changer de thème">🌗</button>
+      </header>
+
+      <main>
+        <!-- ── Saisie du jour ─────────────────────────────────────── -->
+        <section class="vue" id="vue-jour" role="tabpanel" aria-labelledby="onglet-jour">
+          <div class="carte">
+            <div class="barre-date">
+              <button class="bouton icone" id="jour-precedent" aria-label="Jour précédent">‹</button>
+              <div>
+                <div class="jour" id="libelle-jour">aujourd'hui</div>
+                <input type="date" id="champ-date" aria-label="Choisir une date" />
+              </div>
+              <button class="bouton icone" id="jour-suivant" aria-label="Jour suivant">›</button>
+            </div>
+          </div>
+
+          <form id="formulaire-jour" autocomplete="off">
+            <div class="vue" style="gap: 10px">
+              <!-- Poids -->
+              <div class="metrique" data-metrique="poids">
+                <div class="pastille" aria-hidden="true">⚖️</div>
+                <div class="corps">
+                  <div class="titre-metrique">
+                    <label for="champ-poids" style="margin: 0">Poids</label>
+                    <span class="indice" id="indice-poids"></span>
+                  </div>
+                  <div class="rangee-champ">
+                    <input type="number" id="champ-poids" name="poids" step="0.1" min="20" max="400" inputmode="decimal" placeholder="—" />
+                    <span class="unite">kg</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Calories -->
+              <div class="metrique" data-metrique="calories">
+                <div class="pastille" aria-hidden="true">🍽️</div>
+                <div class="corps">
+                  <div class="titre-metrique">
+                    <label for="champ-calories" style="margin: 0">Calories</label>
+                    <span class="indice" id="indice-calories"></span>
+                  </div>
+                  <div class="rangee-champ">
+                    <input type="number" id="champ-calories" name="calories" step="10" min="0" max="20000" inputmode="numeric" placeholder="—" />
+                    <span class="unite">kcal</span>
+                  </div>
+                  <div class="puces" id="ajouts-calories" role="group" aria-label="Ajouter rapidement des calories">
+                    <button type="button" class="puce" data-ajout="200">+200</button>
+                    <button type="button" class="puce" data-ajout="400">+400</button>
+                    <button type="button" class="puce" data-ajout="600">+600</button>
+                    <button type="button" class="puce" data-ajout="800">+800</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Activité -->
+              <div class="metrique" data-metrique="activite">
+                <div class="pastille" aria-hidden="true">🏃</div>
+                <div class="corps">
+                  <div class="titre-metrique">
+                    <label for="champ-activite" style="margin: 0">Activité</label>
+                    <span class="indice" id="indice-activite"></span>
+                  </div>
+                  <div class="rangee-champ">
+                    <input type="number" id="champ-activite" name="activite" step="5" min="0" max="1440" inputmode="numeric" placeholder="—" />
+                    <span class="unite">min</span>
+                    <select id="champ-type-activite" name="typeActivite" aria-label="Type d'activité"></select>
+                  </div>
+                  <div class="puces" id="ajouts-activite" role="group" aria-label="Durées rapides">
+                    <button type="button" class="puce" data-valeur="0">repos</button>
+                    <button type="button" class="puce" data-valeur="30">30</button>
+                    <button type="button" class="puce" data-valeur="45">45</button>
+                    <button type="button" class="puce" data-valeur="60">60</button>
+                    <button type="button" class="puce" data-valeur="90">90</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Alcool -->
+              <div class="metrique" data-metrique="alcool">
+                <div class="pastille" aria-hidden="true">🍷</div>
+                <div class="corps">
+                  <div class="titre-metrique">
+                    <label for="champ-alcool" style="margin: 0">Alcool</label>
+                    <span class="indice" id="indice-alcool"></span>
+                  </div>
+                  <div class="compteur">
+                    <button type="button" class="bouton icone" id="alcool-moins" aria-label="Un verre de moins">−</button>
+                    <input type="number" id="champ-alcool" name="alcool" step="1" min="0" max="60" inputmode="numeric" placeholder="—" style="max-width: 96px; text-align: center" />
+                    <button type="button" class="bouton icone" id="alcool-plus" aria-label="Un verre de plus">+</button>
+                    <span class="unite">verres</span>
+                  </div>
+                  <div class="puces">
+                    <button type="button" class="puce" id="alcool-zero" data-valeur="0">journée sans</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Humeur -->
+              <div class="metrique" data-metrique="humeur">
+                <div class="pastille" aria-hidden="true">🙂</div>
+                <div class="corps">
+                  <div class="titre-metrique">
+                    <span style="font-weight: 600">Humeur</span>
+                    <span class="indice" id="indice-humeur"></span>
+                  </div>
+                  <div class="humeurs" id="choix-humeur" role="group" aria-label="Humeur du jour"></div>
+                </div>
+              </div>
+
+              <!-- Note -->
+              <div class="carte">
+                <label for="champ-note">Note</label>
+                <textarea id="champ-note" name="note" maxlength="2000" placeholder="Sommeil, forme, contexte…"></textarea>
+              </div>
+
+              <div class="pied-formulaire">
+                <span class="etat-sauvegarde" id="etat-sauvegarde" role="status" aria-live="polite"></span>
+                <button type="submit" class="bouton principal" id="enregistrer">Enregistrer</button>
+                <button type="button" class="bouton danger" id="effacer-jour">Effacer la journée</button>
+              </div>
+            </div>
+          </form>
+        </section>
+
+        <!-- ── Bilan ──────────────────────────────────────────────── -->
+        <section class="vue" id="vue-bilan" role="tabpanel" aria-labelledby="onglet-bilan" hidden>
+          <div class="filtres" id="filtres-periode" role="group" aria-label="Période affichée">
+            <span class="etiquette">Période</span>
+            <button type="button" class="puce" data-jours="7">7 j</button>
+            <button type="button" class="puce" data-jours="30">30 j</button>
+            <button type="button" class="puce" data-jours="90">90 j</button>
+            <button type="button" class="puce" data-jours="365">1 an</button>
+          </div>
+          <div id="contenu-bilan" class="vue" style="gap: 12px"></div>
+        </section>
+
+        <!-- ── Journal (vue tableau) ──────────────────────────────── -->
+        <section class="vue" id="vue-journal" role="tabpanel" aria-labelledby="onglet-journal" hidden>
+          <div class="carte">
+            <h2>Journal</h2>
+            <p class="sous-titre">Toutes les journées enregistrées. Touchez une date pour la modifier.</p>
+            <div class="defilement-x" id="contenu-journal"></div>
+          </div>
+        </section>
+
+        <!-- ── Réglages ───────────────────────────────────────────── -->
+        <section class="vue" id="vue-reglages" role="tabpanel" aria-labelledby="onglet-reglages" hidden>
+          <div class="carte">
+            <h2>Objectifs</h2>
+            <p class="sous-titre">Servent de repères sur les graphiques. Laissez vide pour ne pas en afficher.</p>
+            <div class="grille-champs">
+              <div>
+                <label for="objectif-calories">Calories / jour</label>
+                <input type="number" id="objectif-calories" step="50" min="0" max="20000" inputmode="numeric" />
+              </div>
+              <div>
+                <label for="objectif-poids">Poids visé (kg)</label>
+                <input type="number" id="objectif-poids" step="0.1" min="20" max="400" inputmode="decimal" />
+              </div>
+              <div>
+                <label for="objectif-activite">Activité / semaine (min)</label>
+                <input type="number" id="objectif-activite" step="10" min="0" max="10080" inputmode="numeric" />
+              </div>
+              <div>
+                <label for="objectif-alcool">Verres / semaine max</label>
+                <input type="number" id="objectif-alcool" step="1" min="0" max="200" inputmode="numeric" />
+              </div>
+            </div>
+          </div>
+
+          <div class="carte">
+            <h2>Apparence</h2>
+            <div class="puces" id="choix-theme" role="group" aria-label="Thème">
+              <button type="button" class="puce" data-theme="auto">Système</button>
+              <button type="button" class="puce" data-theme="clair">Clair</button>
+              <button type="button" class="puce" data-theme="sombre">Sombre</button>
+            </div>
+          </div>
+
+          <div class="carte">
+            <h2>Sauvegarde</h2>
+            <p class="sous-titre">
+              Les données restent sur cet appareil, dans le stockage local du navigateur. Rien n'est envoyé sur
+              un serveur — donc exportez de temps en temps, et avant de vider les données du navigateur.
+            </p>
+            <div class="actions">
+              <button type="button" class="bouton" id="export-json">Exporter (JSON)</button>
+              <button type="button" class="bouton" id="export-csv">Exporter (CSV)</button>
+              <button type="button" class="bouton" id="bouton-import">Importer…</button>
+              <input type="file" id="fichier-import" accept=".json,.csv,text/csv,application/json" hidden />
+            </div>
+            <p class="discret" id="resume-donnees" style="margin-top: 10px"></p>
+          </div>
+
+          <div class="carte">
+            <h2>Zone rouge</h2>
+            <p class="sous-titre">Supprime toutes les journées enregistrées. Irréversible : exportez d'abord.</p>
+            <button type="button" class="bouton danger" id="tout-effacer">Tout effacer</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <nav class="onglets" role="tablist" aria-label="Sections">
+      <button role="tab" id="onglet-jour" data-vue="jour" aria-selected="true" aria-controls="vue-jour">
+        <span class="glyphe" aria-hidden="true">✍️</span>Jour
+      </button>
+      <button role="tab" id="onglet-bilan" data-vue="bilan" aria-selected="false" aria-controls="vue-bilan">
+        <span class="glyphe" aria-hidden="true">📈</span>Bilan
+      </button>
+      <button role="tab" id="onglet-journal" data-vue="journal" aria-selected="false" aria-controls="vue-journal">
+        <span class="glyphe" aria-hidden="true">📋</span>Journal
+      </button>
+      <button role="tab" id="onglet-reglages" data-vue="reglages" aria-selected="false" aria-controls="vue-reglages">
+        <span class="glyphe" aria-hidden="true">⚙️</span>Réglages
+      </button>
+    </nav>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script type="module" src="src/app.js"></script>
+  </body>
+</html>

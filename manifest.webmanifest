@@ -1,0 +1,32 @@
+{
+  "name": "LagoonWatcher — suivi perso",
+  "short_name": "LagoonWatcher",
+  "description": "Suivi personnel des calories, du poids, de l'activité, de l'alcool et de l'humeur. Données stockées uniquement sur l'appareil.",
+  "lang": "fr",
+  "dir": "ltr",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f9f9f7",
+  "theme_color": "#fcfcfb",
+  "categories": ["health", "lifestyle", "productivity"],
+  "icons": [
+    {
+      "src": "assets/icone.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icone-maskable.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    { "name": "Saisir la journée", "url": "./#jour" },
+    { "name": "Voir le bilan", "url": "./#bilan" }
+  ]
+}

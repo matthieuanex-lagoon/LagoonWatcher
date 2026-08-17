@@ -1,0 +1,979 @@
+/* LagoonWatcher — feuille de style unique.
+   Les couleurs sont définies une fois en variables (clair par défaut, sombre
+   redéfini sous la préférence système ET sous [data-theme], pour que la bascule
+   manuelle gagne dans les deux sens). */
+
+:root {
+  color-scheme: light;
+
+  --fond: #f9f9f7;
+  --surface: #fcfcfb;
+  --surface-creuse: #f2f1ed;
+  --encre: #0b0b0b;
+  --encre-2: #52514e;
+  --encre-3: #898781;
+  --grille: #e1e0d9;
+  --base: #c3c2b7;
+  --bord: rgba(11, 11, 11, 0.1);
+  --bord-net: rgba(11, 11, 11, 0.18);
+
+  --serie-poids: #2a78d6;
+  --serie-calories: #eb6834;
+  --serie-activite: #1baf7a;
+  --serie-alcool: #eda100;
+  --serie-humeur: #e87ba4;
+
+  --bon: #0ca30c;
+  --attention: #fab219;
+  --critique: #d03b3b;
+  --texte-succes: #006300;
+  --texte-alerte: #a52020;
+
+  --rayon: 14px;
+  --rayon-s: 9px;
+  --ombre: 0 1px 2px rgba(11, 11, 11, 0.04);
+  --sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='clair']) {
+    color-scheme: dark;
+    --fond: #0d0d0d;
+    --surface: #1a1a19;
+    --surface-creuse: #222220;
+    --encre: #ffffff;
+    --encre-2: #c3c2b7;
+    --encre-3: #898781;
+    --grille: #2c2c2a;
+    --base: #383835;
+    --bord: rgba(255, 255, 255, 0.1);
+    --bord-net: rgba(255, 255, 255, 0.2);
+    --serie-poids: #3987e5;
+    --serie-calories: #d95926;
+    --serie-activite: #199e70;
+    --serie-alcool: #c98500;
+    --serie-humeur: #d55181;
+    --texte-succes: #0ca30c;
+    --texte-alerte: #e66767;
+    --ombre: 0 1px 2px rgba(0, 0, 0, 0.4);
+  }
+}
+
+:root[data-theme='sombre'] {
+  color-scheme: dark;
+  --fond: #0d0d0d;
+  --surface: #1a1a19;
+  --surface-creuse: #222220;
+  --encre: #ffffff;
+  --encre-2: #c3c2b7;
+  --encre-3: #898781;
+  --grille: #2c2c2a;
+  --base: #383835;
+  --bord: rgba(255, 255, 255, 0.1);
+  --bord-net: rgba(255, 255, 255, 0.2);
+  --serie-poids: #3987e5;
+  --serie-calories: #d95926;
+  --serie-activite: #199e70;
+  --serie-alcool: #c98500;
+  --serie-humeur: #d55181;
+  --texte-succes: #0ca30c;
+  --texte-alerte: #e66767;
+  --ombre: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0 0 84px;
+  background: var(--fond);
+  color: var(--encre);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.45;
+  -webkit-text-size-adjust: 100%;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  line-height: 1.25;
+  font-weight: 600;
+}
+
+p {
+  margin: 0 0 0.6em;
+}
+
+a {
+  color: var(--serie-poids);
+}
+
+/* ── Structure ─────────────────────────────────────────────────────── */
+
+.enveloppe {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 14px;
+}
+
+.entete {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 0 10px;
+}
+
+.marque {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.marque small {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--encre-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.entete .pousse {
+  margin-left: auto;
+}
+
+.vue[hidden] {
+  display: none;
+}
+
+.vue {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 10px;
+}
+
+.carte {
+  background: var(--surface);
+  border: 1px solid var(--bord);
+  border-radius: var(--rayon);
+  box-shadow: var(--ombre);
+  padding: 14px;
+}
+
+.carte > h2,
+.carte > h3 {
+  font-size: 0.95rem;
+  margin-bottom: 2px;
+}
+
+.sous-titre {
+  color: var(--encre-3);
+  font-size: 0.8rem;
+  margin: 0 0 10px;
+}
+
+.discret {
+  color: var(--encre-3);
+  font-size: 0.8rem;
+}
+
+/* ── Contrôles ─────────────────────────────────────────────────────── */
+
+button,
+select,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+.bouton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 8px 14px;
+  background: var(--surface);
+  border: 1px solid var(--bord-net);
+  border-radius: var(--rayon-s);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.bouton:hover {
+  background: var(--surface-creuse);
+}
+
+.bouton.principal {
+  background: var(--encre);
+  border-color: var(--encre);
+  color: var(--surface);
+}
+
+.bouton.principal:hover {
+  opacity: 0.88;
+}
+
+.bouton.danger {
+  color: var(--texte-alerte);
+  border-color: color-mix(in srgb, var(--texte-alerte) 40%, transparent);
+}
+
+.bouton.fantome {
+  border-color: transparent;
+  background: transparent;
+}
+
+.bouton.fantome:hover {
+  background: var(--surface-creuse);
+}
+
+.bouton.icone {
+  min-width: 40px;
+  padding: 8px;
+}
+
+.bouton:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.bouton:disabled:hover {
+  background: var(--surface);
+}
+
+:where(button, a, input, select, textarea):focus-visible,
+svg[tabindex]:focus-visible {
+  outline: 2px solid var(--serie-poids);
+  outline-offset: 2px;
+}
+
+input[type='number'],
+input[type='text'],
+input[type='date'],
+select,
+textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 11px;
+  background: var(--surface);
+  border: 1px solid var(--bord-net);
+  border-radius: var(--rayon-s);
+  font-variant-numeric: tabular-nums;
+}
+
+textarea {
+  min-height: 72px;
+  resize: vertical;
+  font-variant-numeric: normal;
+}
+
+label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--encre-2);
+  margin-bottom: 5px;
+}
+
+/* ── Navigation de date ────────────────────────────────────────────── */
+
+.barre-date {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.barre-date .jour {
+  flex: 1;
+  text-align: center;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.barre-date input[type='date'] {
+  width: auto;
+  min-height: 36px;
+  border-color: transparent;
+  background: transparent;
+  font-size: 0.78rem;
+  color: var(--encre-3);
+  padding: 2px 4px;
+}
+
+/* ── Champs métriques ──────────────────────────────────────────────── */
+
+.metrique {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 10px 12px;
+  align-items: start;
+  padding: 13px 14px;
+  background: var(--surface);
+  border: 1px solid var(--bord);
+  border-left: 3px solid var(--teinte, var(--base));
+  border-radius: var(--rayon);
+  box-shadow: var(--ombre);
+}
+
+.metrique[data-metrique='poids'] {
+  --teinte: var(--serie-poids);
+}
+.metrique[data-metrique='calories'] {
+  --teinte: var(--serie-calories);
+}
+.metrique[data-metrique='activite'] {
+  --teinte: var(--serie-activite);
+}
+.metrique[data-metrique='alcool'] {
+  --teinte: var(--serie-alcool);
+}
+.metrique[data-metrique='humeur'] {
+  --teinte: var(--serie-humeur);
+}
+
+.metrique .pastille {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--teinte) 14%, var(--surface));
+  font-size: 1.05rem;
+}
+
+.metrique .corps {
+  min-width: 0;
+}
+
+.metrique .titre-metrique {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.metrique .titre-metrique .indice {
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: var(--encre-3);
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.rangee-champ {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rangee-champ .unite {
+  color: var(--encre-3);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.rangee-champ input[type='number'] {
+  max-width: 130px;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.puces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.puce {
+  min-height: 32px;
+  padding: 4px 10px;
+  background: var(--surface-creuse);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+
+.puce:hover {
+  border-color: var(--bord-net);
+}
+
+.puce[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--teinte, var(--encre)) 16%, var(--surface));
+  border-color: var(--teinte, var(--bord-net));
+  font-weight: 600;
+}
+
+.compteur {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.compteur .valeur {
+  min-width: 2.4ch;
+  text-align: center;
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.humeurs {
+  display: flex;
+  gap: 6px;
+}
+
+.humeurs button {
+  flex: 1;
+  display: grid;
+  gap: 2px;
+  place-items: center;
+  min-height: 56px;
+  padding: 6px 2px;
+  background: var(--surface-creuse);
+  border: 1px solid transparent;
+  border-radius: var(--rayon-s);
+  cursor: pointer;
+  font-size: 1.3rem;
+}
+
+.humeurs button span {
+  font-size: 0.62rem;
+  color: var(--encre-2);
+  line-height: 1.1;
+  text-align: center;
+}
+
+.humeurs button:hover {
+  border-color: var(--bord-net);
+}
+
+.humeurs button[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--serie-humeur) 18%, var(--surface));
+  border-color: var(--serie-humeur);
+}
+
+.pied-formulaire {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  padding: 2px 2px 0;
+}
+
+.pied-formulaire .etat-sauvegarde {
+  grid-column: 1 / -1;
+}
+
+
+
+.etat-sauvegarde {
+  font-size: 0.78rem;
+  color: var(--encre-3);
+  min-height: 1.2em;
+}
+
+.etat-sauvegarde[data-etat='ok'] {
+  color: var(--texte-succes);
+}
+
+.etat-sauvegarde[data-etat='erreur'] {
+  color: var(--texte-alerte);
+}
+
+/* ── Bilan ─────────────────────────────────────────────────────────── */
+
+.filtres {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 2px 0;
+}
+
+.filtres .etiquette {
+  font-size: 0.78rem;
+  color: var(--encre-3);
+  margin-right: 2px;
+}
+
+.heros {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 520px) {
+  .heros {
+    grid-template-columns: 1.2fr 1fr;
+  }
+}
+
+.hero .valeur-hero {
+  font-size: 3rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+
+.hero .valeur-hero .unite {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--encre-3);
+  margin-left: 0.28em;
+}
+
+.hero .etiquette-hero {
+  font-size: 0.8rem;
+  color: var(--encre-3);
+  margin-bottom: 4px;
+}
+
+.delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.delta[data-sens='bon'] {
+  color: var(--texte-succes);
+}
+.delta[data-sens='mauvais'] {
+  color: var(--texte-alerte);
+}
+.delta[data-sens='neutre'] {
+  color: var(--encre-2);
+}
+
+.tuiles {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (min-width: 620px) {
+  .tuiles {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.tuile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--bord);
+  border-radius: var(--rayon);
+  box-shadow: var(--ombre);
+}
+
+.tuile .etiquette-tuile {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  color: var(--encre-2);
+}
+
+.tuile .puce-couleur {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--teinte, var(--base));
+  flex: none;
+}
+
+.tuile .valeur-tuile {
+  font-size: 1.45rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.tuile .valeur-tuile .unite,
+.series .unite {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--encre-3);
+  margin-left: 0.4em;
+}
+
+/* Séries en cours : « 12 jours sans alcool » sur une ligne, nombre en avant. */
+.series {
+  display: grid;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.series .valeur-tuile {
+  font-size: 1.45rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.tuile .sparkline {
+  margin-top: 4px;
+  align-self: flex-start;
+}
+
+.jauge {
+  height: 6px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--teinte, var(--base)) 20%, transparent);
+  overflow: hidden;
+}
+
+.jauge > i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--teinte, var(--base));
+}
+
+.jauge[data-etat='depasse'] > i {
+  background: var(--critique);
+}
+
+/* ── Graphiques ────────────────────────────────────────────────────── */
+
+.carte-graphique .en-tete-graphique {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.carte-graphique h3 {
+  font-size: 0.9rem;
+}
+
+.carte-graphique .repere-serie {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: var(--teinte, var(--base));
+  flex: none;
+  transform: translateY(-1px);
+}
+
+.carte-graphique .resume {
+  margin-left: auto;
+  font-size: 0.78rem;
+  color: var(--encre-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.zone-graphique {
+  position: relative;
+  width: 100%;
+  min-height: 190px;
+}
+
+.zone-graphique svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  touch-action: pan-y;
+}
+
+.graphique-vide {
+  margin: 0;
+  padding: 56px 8px;
+  text-align: center;
+  color: var(--encre-3);
+  font-size: 0.85rem;
+}
+
+.ligne-grille {
+  stroke: var(--grille);
+  stroke-width: 1;
+}
+
+.ligne-base {
+  stroke: var(--base);
+  stroke-width: 1;
+}
+
+.graduation {
+  fill: var(--encre-3);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ligne-objectif {
+  stroke: var(--encre-3);
+  stroke-width: 1;
+  opacity: 0.65;
+}
+
+.etiquette-objectif {
+  fill: var(--encre-3);
+  font-size: 9.5px;
+}
+
+/* Halo couleur fond : les étiquettes posées sur les marques restent lisibles. */
+.etiquette-objectif,
+.etiquette-valeur {
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+.ligne {
+  fill: none;
+  stroke: var(--serie);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.ligne-tendance {
+  fill: none;
+  stroke: var(--serie);
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0.28;
+}
+
+.colonne {
+  fill: var(--serie);
+}
+
+.colonne-zero {
+  stroke: var(--serie);
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0.5;
+}
+
+.point,
+.point-ligne {
+  fill: var(--serie);
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+
+.etiquette-valeur {
+  fill: var(--encre);
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.repere {
+  stroke: var(--base);
+  stroke-width: 1;
+}
+
+.marqueur-survol {
+  fill: var(--serie);
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+
+.infobulle {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 9px;
+  background: var(--surface);
+  border: 1px solid var(--bord-net);
+  border-radius: var(--rayon-s);
+  box-shadow: 0 4px 14px rgba(11, 11, 11, 0.14);
+  font-size: 0.78rem;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.infobulle strong {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--encre-3);
+}
+
+.infobulle span {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Journal ───────────────────────────────────────────────────────── */
+
+.defilement-x {
+  overflow-x: auto;
+  margin: 0 -14px;
+  padding: 0 14px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+th,
+td {
+  padding: 8px 6px;
+  text-align: right;
+  border-bottom: 1px solid var(--grille);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--encre-2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+th:first-child,
+td:first-child {
+  text-align: left;
+}
+
+td:first-child .lien-jour::first-letter,
+.barre-date .jour::first-letter,
+.infobulle strong::first-letter {
+  text-transform: uppercase;
+}
+
+td.vide {
+  color: var(--encre-3);
+}
+
+tbody tr:hover {
+  background: var(--surface-creuse);
+}
+
+td .lien-jour {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--encre);
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: var(--bord-net);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.vide-etat {
+  padding: 30px 12px;
+  text-align: center;
+  color: var(--encre-3);
+  font-size: 0.88rem;
+}
+
+/* ── Réglages ──────────────────────────────────────────────────────── */
+
+.grille-champs {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ── Onglets ───────────────────────────────────────────────────────── */
+
+.onglets {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--bord);
+}
+
+.onglets button {
+  display: grid;
+  place-items: center;
+  gap: 1px;
+  flex: 1;
+  max-width: 130px;
+  min-height: 50px;
+  padding: 4px;
+  background: none;
+  border: 0;
+  border-radius: var(--rayon-s);
+  color: var(--encre-3);
+  font-size: 0.68rem;
+  cursor: pointer;
+}
+
+.onglets button .glyphe {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.onglets button[aria-selected='true'] {
+  color: var(--encre);
+  background: var(--surface-creuse);
+  font-weight: 600;
+}
+
+/* ── Notification ──────────────────────────────────────────────────── */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 88px;
+  z-index: 20;
+  transform: translate(-50%, 8px);
+  max-width: min(92vw, 420px);
+  padding: 10px 14px;
+  background: var(--encre);
+  color: var(--surface);
+  border-radius: var(--rayon-s);
+  font-size: 0.85rem;
+  box-shadow: 0 6px 20px rgba(11, 11, 11, 0.22);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.toast.visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}
