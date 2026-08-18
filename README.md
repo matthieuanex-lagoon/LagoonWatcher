@@ -12,7 +12,12 @@ Pas de compte, pas de serveur, pas de dépendance : une page web statique qui st
 npm run serve      # puis ouvrir http://localhost:8080
 ```
 
-**Sur le téléphone** — publiez le dossier sur GitHub Pages (`Settings → Pages → Deploy from a branch`, dossier `/`), ouvrez l'URL, puis « Ajouter à l'écran d'accueil ». L'appli s'installe comme une application et s'ouvre sans réseau.
+**Sur le téléphone** — publiez le dossier sur GitHub Pages (`Settings → Pages → Deploy from a branch`, branche principale, dossier `/`), ouvrez l'URL, puis « Ajouter à l'écran d'accueil ». L'appli s'installe comme une application et s'ouvre sans réseau.
+
+> GitHub Pages sur un dépôt **privé** demande un compte payant. Sur un compte
+> gratuit, il faut passer le dépôt en public : cela publie le code, jamais les
+> données de suivi — elles restent dans le navigateur et ne sont dans aucun
+> fichier du dépôt.
 
 ## Les quatre écrans
 
