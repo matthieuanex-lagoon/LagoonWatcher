@@ -13,6 +13,7 @@ import {
   entreesTriees,
   fusionner,
   HUMEURS,
+  instantMaj,
   moyenne,
   moyenneGlissante,
   normaliserEntree,
@@ -279,13 +280,29 @@ function lireFormulaire() {
   };
 }
 
-let minuteurAuto;
+let minuteurAuto = null;
 function enregistrementDiffere() {
   clearTimeout(minuteurAuto);
   const zone = $('#etat-sauvegarde');
   zone.dataset.etat = '';
   zone.textContent = 'Modification en cours…';
-  minuteurAuto = setTimeout(() => majEntree(lireFormulaire(), { rerendre: false }), 700);
+  minuteurAuto = setTimeout(() => {
+    minuteurAuto = null;
+    majEntree(lireFormulaire(), { rerendre: false });
+  }, 700);
+}
+
+/** Valide tout de suite une saisie encore en attente de son délai. */
+function validerSaisieEnAttente() {
+  if (minuteurAuto === null) return;
+  clearTimeout(minuteurAuto);
+  minuteurAuto = null;
+  majEntree(lireFormulaire(), { rerendre: false, silencieux: true });
+}
+
+/** Le curseur est-il dans un champ du formulaire du jour ? */
+function saisieEnCours() {
+  return Boolean(document.activeElement?.closest?.('#formulaire-jour'));
 }
 
 /* ── Vue « Bilan » ─────────────────────────────────────────────────── */
@@ -800,6 +817,20 @@ function rendreSync() {
   } else etatSync('Sauvegarde active, aucun envoi pour le moment.', 'attente');
 }
 
+// Tant que l'appli est à l'écran, on va voir si un autre appareil a écrit.
+// Cinq minutes : assez pour que ça suive une utilisation normale, assez peu
+// pour ne pas réveiller la radio du téléphone sans raison.
+const PERIODE_SYNC = 5 * 60 * 1000;
+let minuteurPeriodique;
+
+function planifierSyncPeriodique() {
+  clearInterval(minuteurPeriodique);
+  if (!configSync) return;
+  minuteurPeriodique = setInterval(() => {
+    if (!document.hidden) recupererMaintenant({ discret: true });
+  }, PERIODE_SYNC);
+}
+
 /** Envoi groupé : on attend la fin de la saisie plutôt que d'appeler à chaque touche. */
 function envoiDiffere() {
   if (!configSync) return;
@@ -843,6 +874,11 @@ async function envoyerMaintenant({ discret = false } = {}) {
  */
 async function recupererMaintenant({ discret = false } = {}) {
   if (!configSync) return;
+  // Une récupération réécrit les champs depuis l'état : tant que le curseur
+  // est dans le formulaire, on repasse plus tard plutôt que d'effacer une
+  // saisie sous les doigts. Un appui explicite sur le bouton, lui, passe.
+  if (discret && saisieEnCours()) return;
+  validerSaisieEnAttente();
   etatSync('Récupération…', 'attente');
   try {
     const contenu = await telechargerGist(configSync);
@@ -859,7 +895,17 @@ async function recupererMaintenant({ discret = false } = {}) {
     rendreJour();
     rendreReglages();
     if (!discret || change) toast(change ? `${change} journée(s) récupérée(s).` : 'Déjà à jour.');
-    rendreSync();
+
+    // Ce que cet appareil a de plus frais que le distant doit repartir :
+    // sinon une saisie faite hors ligne resterait ici jusqu'à la prochaine.
+    const dateDistante = new Map(
+      lu.entrees.map((e) => [String(e?.date ?? '').slice(0, 10), instantMaj(e)]),
+    );
+    const aEnvoyer = Object.entries(etat.entrees).some(
+      ([jour, e]) => instantMaj(e) > (dateDistante.get(jour) ?? -1),
+    );
+    if (aEnvoyer) envoiDiffere();
+    else rendreSync();
   } catch (err) {
     etatSync(err.message, 'erreur');
     if (!discret) toast(err.message);
@@ -883,6 +929,7 @@ async function connecterSync() {
     if (config.cree) await envoyerMaintenant();
     else await recupererMaintenant();
     await envoyerMaintenant({ discret: true });
+    planifierSyncPeriodique();
     toast(config.cree ? 'Sauvegarde en ligne créée.' : 'Sauvegarde existante retrouvée.');
   } catch (err) {
     toast(err.message);
@@ -895,6 +942,7 @@ async function connecterSync() {
 function deconnecterSync() {
   if (!confirm('Désactiver la sauvegarde en ligne sur cet appareil ?\n\nLa clé est oubliée ici. Le gist et son contenu restent sur GitHub.')) return;
   clearTimeout(minuteurEnvoi);
+  clearInterval(minuteurPeriodique);
   configSync = null;
   sauverConfigSync(null);
   rendreSync();
@@ -1035,15 +1083,25 @@ function brancher() {
   $('#sync-envoyer').addEventListener('click', () => envoyerMaintenant());
   $('#sync-recuperer').addEventListener('click', () => recupererMaintenant());
   $('#sync-deconnecter').addEventListener('click', deconnecterSync);
-  // Une saisie en cours au moment de quitter la page part tout de suite.
+  // Quitter la page envoie tout de suite ce qui attendait ; y revenir va
+  // chercher ce que les autres appareils ont écrit entre-temps.
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden && configSync) {
+    if (!configSync) return;
+    if (document.hidden) {
       clearTimeout(minuteurEnvoi);
+      validerSaisieEnAttente();
       envoyerMaintenant({ discret: true });
+    } else {
+      recupererMaintenant({ discret: true });
     }
   });
+  window.addEventListener('focus', () => {
+    if (configSync && !document.hidden) recupererMaintenant({ discret: true });
+  });
   window.addEventListener('online', () => {
-    if (configSync) envoiDiffere();
+    if (!configSync) return;
+    recupererMaintenant({ discret: true });
+    envoiDiffere();
   });
 
   $('#tout-effacer').addEventListener('click', () => {
@@ -1085,7 +1143,10 @@ appliquerTheme();
 rendreJour();
 afficherVue(location.hash.slice(1) || 'jour');
 
-if (configSync) recupererMaintenant({ discret: true });
+if (configSync) {
+  recupererMaintenant({ discret: true });
+  planifierSyncPeriodique();
+}
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   window.addEventListener('load', () => {

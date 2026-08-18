@@ -57,7 +57,18 @@ Pour retrouver son suivi d'un appareil à l'autre, l'appli peut recopier ses jou
 
 Mise en route, une fois par appareil : créer une clé sur [github.com → jetons](https://github.com/settings/tokens/new?scopes=gist&description=LagoonWatcher) en cochant **uniquement `gist`**, puis la coller dans `Réglages → Sauvegarde en ligne`. Le premier appareil crée le gist, les suivants le retrouvent par sa description — il n'y en a jamais deux.
 
-Ensuite, c'est automatique : envoi quelques secondes après une saisie (et immédiatement en quittant l'appli), récupération au démarrage.
+Ensuite, c'est automatique :
+
+| Moment | Ce qui se passe |
+|---|---|
+| Quelques secondes après une saisie | envoi |
+| En quittant l'appli (page masquée) | envoi immédiat de ce qui restait |
+| À l'ouverture | récupération |
+| Au retour dans l'appli (premier plan) | récupération |
+| Toutes les 5 minutes, appli à l'écran | récupération |
+| Au retour du réseau | récupération puis envoi |
+
+Le rythme de 5 minutes ne s'applique que lorsque la page est visible : en arrière-plan, l'appli n'interroge rien et ne réveille pas la radio du téléphone.
 
 Ce qui rend la chose sûre à l'usage :
 
@@ -65,6 +76,7 @@ Ce qui rend la chose sûre à l'usage :
 - **Activer la sauvegarde sur un appareil déjà rempli récupère avant d'envoyer**, pour ne pas écraser l'historique venu d'ailleurs.
 - **La clé vit dans le stockage local, sous une clé distincte des données** : un export JSON ou CSV ne l'emporte jamais avec lui. Elle n'autorise que l'accès aux gists — ni au code, ni au reste du compte.
 - **Une coupure réseau ne perd rien** : les données restent sur l'appareil et le prochain envoi rattrape.
+- **Une récupération n'écrase jamais une saisie en cours** : tant que le curseur est dans un champ, la récupération automatique repasse plus tard ; et une modification encore dans son délai d'attente est validée avant la fusion, pour qu'elle porte son horodatage et gagne l'arbitrage.
 
 À savoir : un gist privé n'est pas chiffré. Il est invisible pour les autres, mais lisible par GitHub. Pour de la donnée de santé que l'on préfère illisible côté serveur, il faudrait ajouter un chiffrement par mot de passe avant l'envoi.
 
