@@ -78,6 +78,7 @@ export function versJSON(etat) {
       application: 'LagoonWatcher',
       version: VERSION,
       exporteLe: new Date().toISOString(),
+      versionAppli: etat.versionAppli ?? null,
       objectifs: etat.objectifs,
       suppressions: etat.suppressions ?? {},
       entrees: Object.values(etat.entrees).sort((a, b) => a.date.localeCompare(b.date)),

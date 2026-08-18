@@ -48,7 +48,12 @@ const modules = ordre.map((f) => {
   if (f === 'src/app.js') {
     // Pas de service worker dans un artifact : le fichier n'existe pas ici.
     src = src.replace(/if \('serviceWorker' in navigator[\s\S]*?\n}\n/, '');
-    if (src.includes('serviceWorker')) throw new Error('Bloc service worker encore présent');
+    // On vise l'enregistrement lui-même : d'autres passages parlent du service
+    // worker sans en enregistrer (le bouton de mise à jour forcée, par exemple),
+    // et ceux-là ne gênent pas — sans service worker, ils ne font rien.
+    if (/navigator\.serviceWorker[\s\S]{0,40}\.register\(/.test(src)) {
+      throw new Error("Enregistrement du service worker encore présent");
+    }
   }
   if (/^\s*(import|export)\s/m.test(src)) throw new Error(`Import/export résiduel dans ${f}`);
   return `/* ═══ ${f} ═══ */\n${src.trim()}`;

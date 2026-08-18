@@ -37,6 +37,14 @@ import {
   telechargerGist,
 } from './sync.js';
 
+/**
+ * Version affichée dans les réglages et reportée dans les exports. À monter
+ * à chaque changement de comportement : sans elle, impossible de savoir quelle
+ * version tourne réellement sur un appareil, et un cache périmé se diagnostique
+ * à l'aveugle.
+ */
+export const VERSION_APPLI = '2026-08-18 · 4';
+
 const $ = (sel, racine = document) => racine.querySelector(sel);
 const $$ = (sel, racine = document) => [...racine.querySelectorAll(sel)];
 
@@ -754,6 +762,7 @@ function rendreReglages() {
   appliquerTheme();
 
   rendreSync();
+  $('#version-appli').textContent = `Version ${VERSION_APPLI}`;
   const liste = entreesTriees(etat.entrees);
   $('#resume-donnees').textContent = liste.length
     ? `${liste.length} journées enregistrées, du ${formatDay(liste[0].date, { relative: false, withYear: true })} au ${formatDay(
@@ -892,7 +901,7 @@ async function envoyerMaintenant({ discret = false } = {}) {
   envoiEnCours = true;
   etatSync('Envoi en cours…', 'attente');
   try {
-    const quand = await envoyerGist(configSync, versJSON(etat));
+    const quand = await envoyerGist(configSync, versJSON({ ...etat, versionAppli: VERSION_APPLI }));
     configSync = { ...configSync, dernier: quand };
     sauverConfigSync(configSync);
     rendreSync();
@@ -962,7 +971,7 @@ async function connecterSync() {
   bouton.disabled = true;
   bouton.textContent = 'Connexion…';
   try {
-    const config = await connecterGist(jeton, versJSON(etat));
+    const config = await connecterGist(jeton, versJSON({ ...etat, versionAppli: VERSION_APPLI }));
     configSync = { jeton: config.jeton, gistId: config.gistId, dernier: null };
     sauverConfigSync(configSync);
     $('#champ-jeton').value = '';
@@ -1097,7 +1106,7 @@ function brancher() {
     });
   }
   $('#export-json').addEventListener('click', () => {
-    telechargerFichier(`lagoonwatcher-${horodatage()}.json`, versJSON(etat), 'application/json');
+    telechargerFichier(`lagoonwatcher-${horodatage()}.json`, versJSON({ ...etat, versionAppli: VERSION_APPLI }), 'application/json');
     toast('Export JSON téléchargé.');
   });
   $('#export-csv').addEventListener('click', () => {
@@ -1139,6 +1148,20 @@ function brancher() {
     if (!configSync) return;
     recupererMaintenant({ discret: true });
     envoiDiffere();
+  });
+
+  $('#forcer-maj').addEventListener('click', async () => {
+    // Vider le cache du service worker et le désinscrire : au rechargement,
+    // tout est retéléchargé. Les données de suivi ne sont pas dans ce cache.
+    try {
+      const registres = await navigator.serviceWorker?.getRegistrations?.();
+      await Promise.all((registres ?? []).map((r) => r.unregister()));
+      const noms = await caches?.keys?.();
+      await Promise.all((noms ?? []).map((n) => caches.delete(n)));
+    } catch (err) {
+      console.warn('Nettoyage du cache incomplet', err);
+    }
+    location.reload();
   });
 
   $('#tout-effacer').addEventListener('click', () => {

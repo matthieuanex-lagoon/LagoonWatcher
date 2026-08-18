@@ -81,6 +81,19 @@ Ce qui rend la chose sûre à l'usage :
 
 À savoir : un gist privé n'est pas chiffré. Il est invisible pour les autres, mais lisible par GitHub. Pour de la donnée de santé que l'on préfère illisible côté serveur, il faudrait ajouter un chiffrement par mot de passe avant l'envoi.
 
+## Savoir quelle version tourne
+
+`Réglages → Version` affiche la version de l'appli, également reportée dans
+chaque export JSON et dans la sauvegarde en ligne. Sans ce repère, un cache
+périmé se diagnostique à l'aveugle — l'appli semble à jour et ne l'est pas.
+
+Le bouton **Forcer la mise à jour** désinscrit le service worker, vide son cache
+et recharge. Les journées enregistrées ne sont pas dans ce cache : elles sont
+conservées.
+
+Côté développement, `VERSION_APPLI` (dans `src/app.js`) est à monter à chaque
+changement de comportement.
+
 ## Développement
 
 ```bash
