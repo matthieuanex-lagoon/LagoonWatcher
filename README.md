@@ -46,7 +46,14 @@ L'import accepte les deux formats et fusionne : les journées déjà présentes 
 
 ```bash
 npm test           # tests unitaires du modèle (node:test, aucune dépendance)
+npm run build:solo # regroupe tout dans lagoonwatcher.solo.html (un seul fichier)
 ```
+
+`build:solo` produit une version autonome — styles et modules intégrés, aucune
+ressource externe — pratique pour s'envoyer l'appli par mail, l'ouvrir depuis un
+fichier local ou la publier ailleurs. Le script échoue plutôt que de produire un
+fichier douteux : il vérifie qu'aucun `import` ne subsiste et qu'aucun nom de
+premier niveau n'entre en collision entre les modules.
 
 ```
 index.html                 structure des quatre écrans
@@ -57,6 +64,7 @@ src/store.js               lecture / écriture du localStorage
 src/charts.js              graphiques SVG (ligne, colonnes, points) + survol
 src/app.js                 câblage de l'interface
 sw.js, manifest.webmanifest  installation et fonctionnement hors ligne
+scripts/build-solo.mjs     assemblage de la version en un seul fichier
 tests/model.test.js        20 tests sur le modèle
 ```
 

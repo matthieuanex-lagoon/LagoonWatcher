@@ -98,8 +98,16 @@ function persister({ silencieux = false } = {}) {
 
 /* ── Thème ─────────────────────────────────────────────────────────── */
 
+const THEMES = ['auto', 'clair', 'sombre'];
+
 function appliquerTheme() {
-  document.documentElement.dataset.theme = etat.theme;
+  const pose = document.documentElement.dataset.theme;
+  // En mode « système », on respecte un thème posé par la page hôte (un
+  // visualiseur qui estampille data-theme) plutôt que de l'écraser : ce n'est
+  // qu'en choisissant explicitement clair ou sombre qu'on reprend la main.
+  if (etat.theme !== 'auto' || THEMES.includes(pose) || !pose) {
+    document.documentElement.dataset.theme = etat.theme;
+  }
   $$('#choix-theme .puce').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.theme === etat.theme)));
 }
 
