@@ -1,0 +1,4 @@
+{
+  "version": "2026-08-18 · 7",
+  "note": "Version servie en ligne. L'appli la compare à la sienne pour proposer une mise à jour. Un test vérifie qu'elle reste alignée sur VERSION_APPLI dans src/app.js."
+}

@@ -44,7 +44,7 @@ import {
  * version tourne réellement sur un appareil, et un cache périmé se diagnostique
  * à l'aveugle.
  */
-export const VERSION_APPLI = '2026-08-18 · 6';
+export const VERSION_APPLI = '2026-08-18 · 7';
 
 const $ = (sel, racine = document) => racine.querySelector(sel);
 const $$ = (sel, racine = document) => [...racine.querySelectorAll(sel)];
@@ -1017,6 +1017,59 @@ async function importerFichier(fichier) {
   envoiDiffere();
 }
 
+/* ── Mise à jour de l'appli ────────────────────────────────────────── */
+
+// Vérification discrète, à l'ouverture et de loin en loin : un onglet resté
+// ouvert plusieurs jours ne doit pas tourner indéfiniment sur du vieux code.
+const PERIODE_VERSION = 30 * 60 * 1000;
+
+async function versionEnLigne() {
+  try {
+    const rep = await fetch(`version.json?t=${Date.now()}`, { cache: 'no-store' });
+    if (!rep.ok) return null;
+    return (await rep.json())?.version ?? null;
+  } catch {
+    // Hors ligne, ou version en un seul fichier sans version.json : dans les
+    // deux cas il n'y a rien à proposer, et surtout rien à signaler.
+    return null;
+  }
+}
+
+async function verifierVersion() {
+  const enLigne = await versionEnLigne();
+  $('#bandeau-maj').hidden = !(enLigne && enLigne !== VERSION_APPLI);
+}
+
+/**
+ * Met à jour en protégeant d'abord la saisie : on valide ce qui est en
+ * attente, on l'envoie si la sauvegarde en ligne est active, et seulement
+ * ensuite on vide les caches et on recharge.
+ */
+async function appliquerMiseAJour() {
+  const bouton = $('#appliquer-maj');
+  bouton.disabled = true;
+  bouton.textContent = 'Mise à jour…';
+  validerSaisieEnAttente();
+  if (configSync) {
+    clearTimeout(minuteurEnvoi);
+    await envoyerMaintenant({ discret: true });
+  }
+  await viderCaches();
+  location.reload();
+}
+
+/** Désinscrit le service worker et vide ses caches. Les données n'y sont pas. */
+async function viderCaches() {
+  try {
+    const registres = await navigator.serviceWorker?.getRegistrations?.();
+    await Promise.all((registres ?? []).map((r) => r.unregister()));
+    const noms = await caches?.keys?.();
+    await Promise.all((noms ?? []).map((n) => caches.delete(n)));
+  } catch (err) {
+    console.warn('Nettoyage du cache incomplet', err);
+  }
+}
+
 /* ── Sauvegarde en ligne ───────────────────────────────────────────── */
 
 let configSync = chargerConfigSync();
@@ -1322,6 +1375,12 @@ function brancher() {
       recupererMaintenant({ discret: true });
     }
   });
+
+  // La vérification de version ne dépend pas de la sauvegarde en ligne : un
+  // appareil qui ne synchronise rien doit lui aussi savoir qu'il est périmé.
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) verifierVersion();
+  });
   // iOS ne déclenche pas toujours visibilitychange en quittant l'appli ;
   // pagehide, lui, est fiable. Les deux mènent au même envoi.
   window.addEventListener('pagehide', () => {
@@ -1339,19 +1398,8 @@ function brancher() {
     envoiDiffere();
   });
 
-  $('#forcer-maj').addEventListener('click', async () => {
-    // Vider le cache du service worker et le désinscrire : au rechargement,
-    // tout est retéléchargé. Les données de suivi ne sont pas dans ce cache.
-    try {
-      const registres = await navigator.serviceWorker?.getRegistrations?.();
-      await Promise.all((registres ?? []).map((r) => r.unregister()));
-      const noms = await caches?.keys?.();
-      await Promise.all((noms ?? []).map((n) => caches.delete(n)));
-    } catch (err) {
-      console.warn('Nettoyage du cache incomplet', err);
-    }
-    location.reload();
-  });
+  $('#forcer-maj').addEventListener('click', appliquerMiseAJour);
+  $('#appliquer-maj').addEventListener('click', appliquerMiseAJour);
 
   $('#tout-effacer').addEventListener('click', () => {
     const n = Object.keys(etat.entrees).length;
@@ -1398,6 +1446,11 @@ if (configSync) {
   recupererMaintenant({ discret: true });
   planifierSyncPeriodique();
 }
+
+verifierVersion();
+setInterval(() => {
+  if (!document.hidden) verifierVersion();
+}, PERIODE_VERSION);
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   window.addEventListener('load', () => {

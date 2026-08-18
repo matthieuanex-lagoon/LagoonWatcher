@@ -2,7 +2,7 @@
 // une fois installée sur le téléphone. Aucune donnée de suivi ne passe ici —
 // elles vivent dans localStorage, pas dans le cache.
 
-const CACHE = 'lagoonwatcher-v2';
+const CACHE = 'lagoonwatcher-v3';
 
 const FICHIERS = [
   './',
@@ -42,6 +42,12 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const requete = e.request;
   if (requete.method !== 'GET' || new URL(requete.url).origin !== location.origin) return;
+  // Le fichier de version sert justement à détecter qu'un cache est périmé :
+  // le servir depuis ce cache le rendrait aveugle.
+  if (new URL(requete.url).pathname.endsWith('/version.json')) {
+    e.respondWith(fetch(requete).catch(() => new Response('{}', { headers: { 'Content-Type': 'application/json' } })));
+    return;
+  }
   e.respondWith(
     fetch(requete)
       .then((reponse) => {

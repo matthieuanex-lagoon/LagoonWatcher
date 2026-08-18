@@ -86,6 +86,16 @@ Ce qui rend la chose sûre à l'usage :
 
 ## Savoir quelle version tourne
 
+L'appli compare sa propre version à celle publiée dans `version.json` — à
+l'ouverture, au retour au premier plan, et toutes les trente minutes tant
+qu'elle est à l'écran. Quand elles diffèrent, **un bandeau apparaît en haut de
+la page** avec un bouton de mise à jour. Rien ne s'affiche s'il n'y a rien de
+neuf, ni hors ligne.
+
+La mise à jour protège la saisie avant de recharger : elle valide ce qui est en
+attente, l'envoie à la sauvegarde en ligne si elle est active, puis seulement
+vide les caches. Les journées enregistrées ne sont pas dans ces caches.
+
 `Réglages → Version` affiche la version de l'appli, également reportée dans
 chaque export JSON et dans la sauvegarde en ligne. Sans ce repère, un cache
 périmé se diagnostique à l'aveugle — l'appli semble à jour et ne l'est pas.
@@ -95,7 +105,8 @@ et recharge. Les journées enregistrées ne sont pas dans ce cache : elles sont
 conservées.
 
 Côté développement, `VERSION_APPLI` (dans `src/app.js`) est à monter à chaque
-changement de comportement.
+changement de comportement, **et `version.json` avec** — un test échoue si les
+deux divergent, car un décalage rend le bandeau soit permanent, soit muet.
 
 ## Développement
 
@@ -122,6 +133,7 @@ src/app.js                 câblage de l'interface
 sw.js, manifest.webmanifest  installation et fonctionnement hors ligne
 scripts/build-solo.mjs     assemblage de la version en un seul fichier
 tests/model.test.js        36 tests sur le modèle
+tests/version.test.js      cohérence version.json / code / cache hors ligne
 ```
 
 Les calculs sont séparés de l'affichage : `model.js` et `dates.js` ne touchent ni au DOM ni au stockage, ce qui rend les tests directs (`node --test`). Les graphiques sont dessinés à la main en SVG — une seule série par graphique, palette validée en clair comme en sombre, étiquetage sélectif, et le Journal sert de vue tableau équivalente.

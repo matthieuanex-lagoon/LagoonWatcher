@@ -115,6 +115,35 @@ a {
   color: var(--serie-poids);
 }
 
+/* ── Bandeau de mise à jour ────────────────────────────────────────── */
+
+.bandeau-maj {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--serie-poids) 12%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--serie-poids) 35%, transparent);
+  border-radius: var(--rayon);
+  font-size: 0.88rem;
+}
+
+.bandeau-maj[hidden] {
+  display: none;
+}
+
+.bandeau-maj span {
+  flex: 1;
+  min-width: 180px;
+}
+
+.bandeau-maj .bouton {
+  min-height: 36px;
+  padding: 6px 12px;
+}
+
 /* ── Structure ─────────────────────────────────────────────────────── */
 
 .enveloppe {
@@ -503,6 +532,10 @@ label {
 
 /* ── Liste des activités ───────────────────────────────────────────── */
 
+.seance[hidden] {
+  display: none;
+}
+
 .seance {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 72px 84px 36px;
@@ -554,6 +587,11 @@ label {
 .seance .retirer:hover {
   background: var(--surface-creuse);
   color: var(--texte-alerte);
+}
+
+/* `display: grid` l'emporterait sur l'attribut `hidden` : il faut le dire. */
+.entete-seances[hidden] {
+  display: none;
 }
 
 .entete-seances {
