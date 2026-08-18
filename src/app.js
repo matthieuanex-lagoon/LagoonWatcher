@@ -136,8 +136,24 @@ function afficherVue(nom) {
 
 /* ── Vue « Jour » ──────────────────────────────────────────────────── */
 
+function entreeDuJour(date) {
+  return etat.entrees[date] ?? entreeVide(date);
+}
+
 function entreeCourante() {
-  return etat.entrees[dateCourante] ?? entreeVide(dateCourante);
+  return entreeDuJour(dateCourante);
+}
+
+/**
+ * Change la journée affichée. Passe toujours par ici : une saisie encore en
+ * attente de son délai appartient à la journée où elle a été tapée, et doit
+ * être écrite avant que l'affichage ne bascule.
+ */
+function allerAuJour(nouvelleDate) {
+  if (nouvelleDate === dateCourante) return rendreJour();
+  validerSaisieEnAttente();
+  dateCourante = nouvelleDate;
+  rendreJour();
 }
 
 function construireChampsStatiques() {
@@ -252,16 +268,16 @@ function joursDepuis(debut, fin) {
  * `rerendre: false` pendant la frappe : réécrire les champs depuis l'état
  * déplacerait le curseur et effacerait une saisie encore incomplète.
  */
-function majEntree(champs, { silencieux = false, rerendre = true } = {}) {
+function majEntree(champs, { silencieux = false, rerendre = true, date = dateCourante } = {}) {
   const fusion = normaliserEntree({
-    ...entreeCourante(),
+    ...entreeDuJour(date),
     ...champs,
-    date: dateCourante,
+    date,
     maj: new Date().toISOString(),
   });
   if (!fusion) return;
-  if (entreeVideOuPas(fusion)) delete etat.entrees[dateCourante];
-  else etat.entrees[dateCourante] = fusion;
+  if (entreeVideOuPas(fusion)) delete etat.entrees[date];
+  else etat.entrees[date] = fusion;
   persister({ silencieux });
   if (rerendre) rendreJour();
   else rendreIndices();
@@ -281,23 +297,36 @@ function lireFormulaire() {
 }
 
 let minuteurAuto = null;
+let jourEnAttente = null;
+
 function enregistrementDiffere() {
   clearTimeout(minuteurAuto);
+  // La journée est retenue ici, à la frappe. Sans ça, un minuteur qui se
+  // déclenche après un changement de jour écrirait la saisie sur la mauvaise
+  // journée — typiquement en revenant dans l'appli, qui repasse à aujourd'hui.
+  jourEnAttente = dateCourante;
   const zone = $('#etat-sauvegarde');
   zone.dataset.etat = '';
   zone.textContent = 'Modification en cours…';
   minuteurAuto = setTimeout(() => {
+    const cible = jourEnAttente;
     minuteurAuto = null;
-    majEntree(lireFormulaire(), { rerendre: false });
+    jourEnAttente = null;
+    // Le jour affiché a changé entre-temps : la saisie a déjà été validée au
+    // moment de la bascule, et le formulaire montre autre chose. On s'abstient.
+    if (cible !== dateCourante) return;
+    majEntree(lireFormulaire(), { rerendre: false, date: cible });
   }, 700);
 }
 
-/** Valide tout de suite une saisie encore en attente de son délai. */
+/** Valide tout de suite une saisie encore en attente, sur sa journée d'origine. */
 function validerSaisieEnAttente() {
   if (minuteurAuto === null) return;
+  const cible = jourEnAttente ?? dateCourante;
   clearTimeout(minuteurAuto);
   minuteurAuto = null;
-  majEntree(lireFormulaire(), { rerendre: false, silencieux: true });
+  jourEnAttente = null;
+  majEntree(lireFormulaire(), { rerendre: false, silencieux: true, date: cible });
 }
 
 /** Le curseur est-il dans un champ du formulaire du jour ? */
@@ -645,8 +674,7 @@ function rendreJournal() {
               class: 'lien-jour',
               type: 'button',
               onclick: () => {
-                dateCourante = e.date;
-                rendreJour();
+                allerAuJour(e.date);
                 afficherVue('jour');
               },
             },
@@ -971,22 +999,12 @@ function brancher() {
   );
 
   // Navigation de date
-  $('#jour-precedent').addEventListener('click', () => {
-    dateCourante = addDays(dateCourante, -1);
-    rendreJour();
-  });
+  $('#jour-precedent').addEventListener('click', () => allerAuJour(addDays(dateCourante, -1)));
   $('#jour-suivant').addEventListener('click', () => {
-    if (dateCourante < todayISO()) dateCourante = addDays(dateCourante, 1);
-    rendreJour();
+    allerAuJour(dateCourante < todayISO() ? addDays(dateCourante, 1) : dateCourante);
   });
-  $('#champ-date').addEventListener('change', (e) => {
-    if (e.target.value) dateCourante = e.target.value;
-    rendreJour();
-  });
-  $('#libelle-jour').addEventListener('dblclick', () => {
-    dateCourante = todayISO();
-    rendreJour();
-  });
+  $('#champ-date').addEventListener('change', (e) => allerAuJour(e.target.value || dateCourante));
+  $('#libelle-jour').addEventListener('dblclick', () => allerAuJour(todayISO()));
 
   // Champs du formulaire : enregistrement différé pendant la frappe,
   // immédiat quand on quitte le champ.
@@ -1126,12 +1144,13 @@ function brancher() {
     if (visible === 'reglages') rendreReglages();
   });
 
-  // Le jour peut changer pendant que l'appli reste ouverte.
+  // Le jour peut changer pendant que l'appli reste ouverte. On valide d'abord
+  // la saisie en attente : elle appartient au jour affiché, pas à aujourd'hui.
+  // Et on ne quitte une journée que si elle est restée vide.
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && dateCourante < todayISO() && !etat.entrees[dateCourante]) {
-      dateCourante = todayISO();
-      rendreJour();
-    }
+    if (document.hidden) return;
+    validerSaisieEnAttente();
+    if (dateCourante < todayISO() && !etat.entrees[dateCourante]) allerAuJour(todayISO());
   });
 }
 
