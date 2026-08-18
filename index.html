@@ -114,6 +114,26 @@
                 </div>
               </div>
 
+              <!-- Café -->
+              <div class="metrique" data-metrique="cafe">
+                <div class="pastille" aria-hidden="true">☕</div>
+                <div class="corps">
+                  <div class="titre-metrique">
+                    <label for="champ-cafe" style="margin: 0">Café</label>
+                    <span class="indice" id="indice-cafe"></span>
+                  </div>
+                  <div class="compteur">
+                    <button type="button" class="bouton icone" id="cafe-moins" aria-label="Un café de moins">−</button>
+                    <input type="number" id="champ-cafe" name="cafe" step="1" min="0" max="30" inputmode="numeric" placeholder="—" style="max-width: 96px; text-align: center" />
+                    <button type="button" class="bouton icone" id="cafe-plus" aria-label="Un café de plus">+</button>
+                    <span class="unite">tasses</span>
+                  </div>
+                  <div class="puces">
+                    <button type="button" class="puce" id="cafe-zero" data-valeur="0">journée sans</button>
+                  </div>
+                </div>
+              </div>
+
               <!-- Humeur -->
               <div class="metrique" data-metrique="humeur">
                 <div class="pastille" aria-hidden="true">🙂</div>
@@ -183,6 +203,10 @@
               <div>
                 <label for="objectif-alcool">Verres / semaine max</label>
                 <input type="number" id="objectif-alcool" step="1" min="0" max="200" inputmode="numeric" />
+              </div>
+              <div>
+                <label for="objectif-cafe">Cafés / jour max</label>
+                <input type="number" id="objectif-cafe" step="1" min="0" max="30" inputmode="numeric" />
               </div>
             </div>
           </div>

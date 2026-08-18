@@ -172,11 +172,13 @@ function rendreJour() {
   $('#champ-activite').value = e.activite ?? '';
   $('#champ-type-activite').value = e.typeActivite ?? '';
   $('#champ-alcool').value = e.alcool ?? '';
+  $('#champ-cafe').value = e.cafe ?? '';
   $('#champ-note').value = e.note ?? '';
 
   $$('#choix-humeur button').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.humeur) === e.humeur)));
   $$('#ajouts-activite .puce').forEach((b) => b.setAttribute('aria-pressed', String(e.activite !== null && Number(b.dataset.valeur) === e.activite)));
   $('#alcool-zero').setAttribute('aria-pressed', String(e.alcool === 0));
+  $('#cafe-zero').setAttribute('aria-pressed', String(e.cafe === 0));
   $('#effacer-jour').disabled = !etat.entrees[dateCourante];
   $('#etat-sauvegarde').textContent = etat.entrees[dateCourante] ? 'Journée enregistrée' : '';
   $('#etat-sauvegarde').dataset.etat = '';
@@ -217,6 +219,16 @@ function rendreIndices() {
     objectifs.alcool ? ` / ${nb(objectifs.alcool)}` : ''
   }${secs > 1 ? ` · ${secs} j sans` : ''}`;
 
+  const cafeJour = entrees[dateCourante]?.cafe ?? null;
+  const moyCafe = moyenne(sept.map((d) => entrees[d]?.cafe ?? null));
+  $('#indice-cafe').textContent = [
+    objectifs.cafe ? `objectif max ${nb(objectifs.cafe)} / jour` : null,
+    cafeJour !== null && objectifs.cafe && cafeJour > objectifs.cafe ? 'dépassé' : null,
+    moyCafe !== null ? `moy. 7 j ${nb(moyCafe, 1)}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
   const moyHumeur = moyenne(sept.map((d) => entrees[d]?.humeur ?? null));
   $('#indice-humeur').textContent = moyHumeur !== null ? `moy. 7 j ${nb(moyHumeur, 1)} / 5` : '';
 }
@@ -249,6 +261,7 @@ function lireFormulaire() {
     activite: $('#champ-activite').value,
     typeActivite: $('#champ-type-activite').value,
     alcool: $('#champ-alcool').value,
+    cafe: $('#champ-cafe').value,
     note: $('#champ-note').value,
   };
 }
@@ -426,6 +439,18 @@ function rendreBilan() {
           : null,
       }),
       tuile({
+        etiquette: 'Café / jour',
+        teinte: 'cafe',
+        valeur: nb(b.cafe.parJour, 1),
+        unite: 'tasses',
+        detail: b.cafe.objectifJour
+          ? `${b.cafe.depassements} jours au-dessus de ${nb(b.cafe.objectifJour)} · ${b.cafe.joursSans} sans`
+          : `${nb(b.cafe.total)} tasses au total · ${b.cafe.joursSans} jours sans`,
+        jauge: b.cafe.objectifJour
+          ? { part: (b.cafe.parJour ?? 0) / b.cafe.objectifJour, depasse: (b.cafe.parJour ?? 0) > b.cafe.objectifJour }
+          : null,
+      }),
+      tuile({
         etiquette: 'Humeur moyenne',
         teinte: 'humeur',
         valeur: nb(b.humeur.moyenne, 1),
@@ -488,6 +513,18 @@ function rendreBilan() {
       },
     }),
     carteGraphique({
+      titre: 'Café',
+      teinte: 'cafe',
+      resume: b.cafe.jours ? `moy. ${nb(b.cafe.parJour, 1)} / jour` : null,
+      config: {
+        type: 'colonnes',
+        points: serie(entrees, 'cafe', jours),
+        unite: (v) => (v > 1 ? 'tasses' : 'tasse'),
+        format: (v) => nb(v),
+        objectif: objectifs.cafe ? { valeur: objectifs.cafe, label: `max ${nb(objectifs.cafe)} / jour` } : null,
+      },
+    }),
+    carteGraphique({
       titre: 'Humeur',
       teinte: 'humeur',
       resume: b.humeur.jours ? `moy. ${nb(b.humeur.moyenne, 1)} / 5` : null,
@@ -516,6 +553,8 @@ function rendreRelations(entrees, jours) {
     { a: 'activite', b: 'humeur', texte: (r) => `Les jours avec plus d'activité vont avec une humeur ${r > 0 ? 'meilleure' : 'moins bonne'}.` },
     { a: 'calories', b: 'poids', texte: (r) => `Les périodes à plus de calories vont avec un poids ${r > 0 ? 'plus élevé' : 'plus bas'}.` },
     { a: 'alcool', b: 'calories', texte: (r) => `Les jours avec alcool sont ${r > 0 ? 'plus' : 'moins'} caloriques.` },
+    { a: 'cafe', b: 'humeur', texte: (r) => `Les jours avec plus de café vont avec une humeur ${r > 0 ? 'meilleure' : 'plus basse'}.` },
+    { a: 'cafe', b: 'activite', texte: (r) => `Les jours avec plus de café sont ${r > 0 ? 'plus' : 'moins'} actifs.` },
   ];
   const trouvees = [];
   for (const p of pistes) {
@@ -588,6 +627,7 @@ function rendreJournal() {
         cellule(e.calories !== null ? nb(e.calories) : null),
         cellule(e.activite !== null ? `${nb(e.activite)}${e.typeActivite ? ` · ${e.typeActivite}` : ''}` : null),
         cellule(e.alcool !== null ? nb(e.alcool) : null),
+        cellule(e.cafe !== null ? nb(e.cafe) : null),
         cellule(e.humeur !== null ? `${HUMEURS[e.humeur - 1].emoji} ${e.humeur}` : null),
         h('td', { class: e.note ? null : 'vide', style: 'max-width:220px; white-space:normal; text-align:left', title: e.note || null }, e.note || '—'),
       ),
@@ -604,7 +644,7 @@ function rendreJournal() {
         h(
           'tr',
           {},
-          ['Date', 'Poids (kg)', 'Calories', 'Activité (min)', 'Alcool', 'Humeur', 'Note'].map((t) => h('th', { scope: 'col' }, t)),
+          ['Date', 'Poids (kg)', 'Calories', 'Activité (min)', 'Alcool', 'Café', 'Humeur', 'Note'].map((t) => h('th', { scope: 'col' }, t)),
         ),
       ),
       corps,
@@ -641,6 +681,7 @@ function rendreReglages() {
   $('#objectif-poids').value = etat.objectifs.poids ?? '';
   $('#objectif-activite').value = etat.objectifs.activite ?? '';
   $('#objectif-alcool').value = etat.objectifs.alcool ?? '';
+  $('#objectif-cafe').value = etat.objectifs.cafe ?? '';
   appliquerTheme();
 
   const liste = entreesTriees(etat.entrees);
@@ -664,6 +705,7 @@ function lireObjectifs() {
     poids: lire('#objectif-poids', null),
     activite: lire('#objectif-activite', null),
     alcool: lire('#objectif-alcool', null),
+    cafe: lire('#objectif-cafe', null),
   };
   persister({ silencieux: true });
 }
@@ -757,7 +799,7 @@ function brancher() {
 
   // Champs du formulaire : enregistrement différé pendant la frappe,
   // immédiat quand on quitte le champ.
-  for (const sel of ['#champ-poids', '#champ-calories', '#champ-activite', '#champ-alcool', '#champ-note']) {
+  for (const sel of ['#champ-poids', '#champ-calories', '#champ-activite', '#champ-alcool', '#champ-cafe', '#champ-note']) {
     $(sel).addEventListener('input', enregistrementDiffere);
     $(sel).addEventListener('change', () => {
       clearTimeout(minuteurAuto);
@@ -798,6 +840,9 @@ function brancher() {
   $('#alcool-moins').addEventListener('click', () => appliquer({ alcool: Math.max(0, (valeurAffichee('#champ-alcool') ?? 0) - 1) }));
   $('#alcool-plus').addEventListener('click', () => appliquer({ alcool: Math.min(60, (valeurAffichee('#champ-alcool') ?? 0) + 1) }));
   $('#alcool-zero').addEventListener('click', () => appliquer({ alcool: valeurAffichee('#champ-alcool') === 0 ? null : 0 }));
+  $('#cafe-moins').addEventListener('click', () => appliquer({ cafe: Math.max(0, (valeurAffichee('#champ-cafe') ?? 0) - 1) }));
+  $('#cafe-plus').addEventListener('click', () => appliquer({ cafe: Math.min(30, (valeurAffichee('#champ-cafe') ?? 0) + 1) }));
+  $('#cafe-zero').addEventListener('click', () => appliquer({ cafe: valeurAffichee('#champ-cafe') === 0 ? null : 0 }));
 
   $('#effacer-jour').addEventListener('click', () => {
     if (!etat.entrees[dateCourante]) return;
@@ -817,7 +862,7 @@ function brancher() {
   );
 
   // Réglages
-  for (const sel of ['#objectif-calories', '#objectif-poids', '#objectif-activite', '#objectif-alcool']) {
+  for (const sel of ['#objectif-calories', '#objectif-poids', '#objectif-activite', '#objectif-alcool', '#objectif-cafe']) {
     $(sel).addEventListener('change', () => {
       lireObjectifs();
       rendreIndices();

@@ -52,6 +52,37 @@ test('dates : la semaine commence le lundi', () => {
   assert.equal(formatAxisDay('2026-08-05'), '05/08');
 });
 
+test('café : bornes et objectif par défaut', () => {
+  assert.equal(OBJECTIFS_DEFAUT.cafe, 3);
+  assert.equal(normaliserEntree({ date: '2026-08-17', cafe: '2' }).cafe, 2);
+  assert.equal(normaliserEntree({ date: '2026-08-17', cafe: '0' }).cafe, 0);
+  assert.equal(normaliserEntree({ date: '2026-08-17', cafe: '99' }).cafe, null);
+  // Un café à zéro reste une journée renseignée.
+  assert.equal(entreeVideOuPas(normaliserEntree({ date: '2026-08-17', cafe: 0 })), false);
+});
+
+test('bilan : moyenne de cafés par jour et dépassements de l\'objectif', () => {
+  const entrees = jeu({
+    '2026-08-15': { cafe: 4 },
+    '2026-08-16': { cafe: 0 },
+    '2026-08-17': { cafe: 5 },
+  });
+  const b = bilan(entrees, lastNDays(7, '2026-08-17'), { ...OBJECTIFS_DEFAUT, cafe: 3 });
+  assert.equal(b.cafe.total, 9);
+  assert.equal(b.cafe.parJour, 3); // moyenne sur les jours saisis, pas sur les 7
+  assert.equal(b.cafe.jours, 3);
+  assert.equal(b.cafe.joursSans, 1);
+  assert.equal(b.cafe.depassements, 2);
+  assert.equal(b.cafe.objectifJour, 3);
+});
+
+test('bilan : sans objectif café, aucun dépassement compté', () => {
+  const entrees = jeu({ '2026-08-17': { cafe: 8 } });
+  const b = bilan(entrees, lastNDays(7, '2026-08-17'), { ...OBJECTIFS_DEFAUT, cafe: null });
+  assert.equal(b.cafe.depassements, 0);
+  assert.equal(b.cafe.objectifJour, null);
+});
+
 test('normalisation : virgule décimale, bornes et champs vides', () => {
   const e = normaliserEntree({ date: '2026-08-17', poids: '72,4', calories: '2100', humeur: '4' });
   assert.equal(e.poids, 72.4);
@@ -123,7 +154,7 @@ test('derniereValeur remonte la saisie la plus récente', () => {
   assert.equal(derniereValeur(entrees, 'humeur'), null);
 });
 
-test('bilan agrège les cinq métriques sur la période', () => {
+test('bilan agrège les métriques sur la période', () => {
   const jours = lastNDays(7, '2026-08-17');
   const entrees = jeu({
     '2026-08-11': { poids: 74, calories: 2400, activite: 60, alcool: 2, humeur: 3 },
@@ -197,13 +228,20 @@ test('correlation : silencieuse en dessous du seuil de paires', () => {
 
 test('CSV : aller-retour sans perte', () => {
   const entrees = jeu({
-    '2026-08-16': { poids: 73.2, calories: 2150, activite: 40, typeActivite: 'Vélo', alcool: 2, humeur: 4, note: 'Sortie; ok' },
+    '2026-08-16': { poids: 73.2, calories: 2150, activite: 40, typeActivite: 'Vélo', alcool: 2, cafe: 3, humeur: 4, note: 'Sortie; ok' },
     '2026-08-17': { alcool: 0, humeur: 5 },
   });
   const relu = depuisCSV(versCSV(entrees));
   assert.equal(relu.length, 2);
   assert.deepEqual(relu[0], entrees['2026-08-16']);
   assert.deepEqual(relu[1], entrees['2026-08-17']);
+});
+
+test('CSV : un export sans colonne café reste importable', () => {
+  const relu = depuisCSV('date;poids_kg;calories_kcal;alcool_verres;humeur_1_5\n2026-08-17;73,5;2100;1;4\n');
+  assert.equal(relu.length, 1);
+  assert.equal(relu[0].cafe, null);
+  assert.equal(relu[0].alcool, 1);
 });
 
 test('CSV : accepte la virgule comme séparateur', () => {

@@ -21,6 +21,7 @@
   --serie-calories: #eb6834;
   --serie-activite: #1baf7a;
   --serie-alcool: #eda100;
+  --serie-cafe: #008300;
   --serie-humeur: #e87ba4;
 
   --bon: #0ca30c;
@@ -52,6 +53,7 @@
     --serie-calories: #d95926;
     --serie-activite: #199e70;
     --serie-alcool: #c98500;
+    --serie-cafe: #008300;
     --serie-humeur: #d55181;
     --texte-succes: #0ca30c;
     --texte-alerte: #e66767;
@@ -75,6 +77,7 @@
   --serie-calories: #d95926;
   --serie-activite: #199e70;
   --serie-alcool: #c98500;
+  --serie-cafe: #008300;
   --serie-humeur: #d55181;
   --texte-succes: #0ca30c;
   --texte-alerte: #e66767;
@@ -338,6 +341,9 @@ label {
 .metrique[data-metrique='alcool'] {
   --teinte: var(--serie-alcool);
 }
+.metrique[data-metrique='cafe'] {
+  --teinte: var(--serie-cafe);
+}
 .metrique[data-metrique='humeur'] {
   --teinte: var(--serie-humeur);
 }
@@ -562,16 +568,12 @@ label {
   color: var(--encre-2);
 }
 
+/* Le nombre de tuiles suit le nombre de métriques : on laisse la grille se
+   remplir plutôt que de figer un compte de colonnes qu'un ajout désaligne. */
 .tuiles {
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-@media (min-width: 620px) {
-  .tuiles {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
+  grid-template-columns: repeat(auto-fit, minmax(136px, 1fr));
 }
 
 .tuile {
@@ -587,15 +589,20 @@ label {
 
 .tuile .etiquette-tuile {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 6px;
+  /* Deux lignes réservées : sans ça, un libellé qui passe sur deux lignes
+     décale son chiffre par rapport aux tuiles voisines. */
+  min-height: 2.3em;
   font-size: 0.76rem;
+  line-height: 1.15;
   color: var(--encre-2);
 }
 
 .tuile .puce-couleur {
   width: 8px;
   height: 8px;
+  transform: translateY(-1px);
   border-radius: 2px;
   background: var(--teinte, var(--base));
   flex: none;

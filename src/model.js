@@ -3,8 +3,8 @@
 
 import { addDays, daySpan, daysBetween, startOfWeek, todayISO } from './dates.js';
 
-/** Les cinq métriques suivies, dans l'ordre d'affichage. */
-export const METRIQUES = ['poids', 'calories', 'activite', 'alcool', 'humeur'];
+/** Les six métriques suivies, dans l'ordre d'affichage. */
+export const METRIQUES = ['poids', 'calories', 'activite', 'alcool', 'cafe', 'humeur'];
 
 export const TYPES_ACTIVITE = [
   'Marche',
@@ -30,6 +30,7 @@ export const OBJECTIFS_DEFAUT = {
   poids: null, // kg visés, optionnel
   activite: 150, // minutes / semaine (recommandation OMS)
   alcool: 10, // verres / semaine maximum
+  cafe: 3, // tasses / jour maximum
 };
 
 /** Une journée vide : toutes les métriques sont optionnelles. */
@@ -41,6 +42,7 @@ export function entreeVide(date) {
     activite: null,
     typeActivite: '',
     alcool: null,
+    cafe: null,
     humeur: null,
     note: '',
   };
@@ -70,6 +72,7 @@ export function normaliserEntree(brut) {
     activite: nombreOuNull(brut.activite, { min: 0, max: 1440 }),
     typeActivite: String(brut.typeActivite ?? '').slice(0, 40),
     alcool: nombreOuNull(brut.alcool, { min: 0, max: 60 }),
+    cafe: nombreOuNull(brut.cafe, { min: 0, max: 30 }),
     humeur: humeur === null ? null : Math.round(humeur),
     note: String(brut.note ?? '').slice(0, 2000),
   };
@@ -82,6 +85,7 @@ export function entreeVideOuPas(e) {
     e.calories === null &&
     e.activite === null &&
     e.alcool === null &&
+    e.cafe === null &&
     e.humeur === null &&
     !e.note.trim()
   );
@@ -167,6 +171,8 @@ export function bilan(entrees, jours, objectifs = OBJECTIFS_DEFAUT) {
   const calories = valeurs('calories').filter((v) => typeof v === 'number');
   const activite = valeurs('activite');
   const alcool = valeurs('alcool');
+  const cafe = valeurs('cafe');
+  const cafeSaisi = cafe.filter((v) => typeof v === 'number');
   const humeur = valeurs('humeur').filter((v) => typeof v === 'number');
 
   const joursAvecAlcool = alcool.filter((v) => typeof v === 'number');
@@ -204,6 +210,14 @@ export function bilan(entrees, jours, objectifs = OBJECTIFS_DEFAUT) {
       joursSecs: joursAvecAlcool.filter((v) => v === 0).length,
       joursAvecConso: joursAvecAlcool.filter((v) => v > 0).length,
       objectifSemaine: objectifs.alcool ?? null,
+    },
+    cafe: {
+      total: somme(cafe),
+      parJour: moyenne(cafeSaisi),
+      jours: cafeSaisi.length,
+      joursSans: cafeSaisi.filter((v) => v === 0).length,
+      depassements: objectifs.cafe ? cafeSaisi.filter((v) => v > objectifs.cafe).length : 0,
+      objectifJour: objectifs.cafe ?? null,
     },
     humeur: {
       moyenne: moyenne(humeur),
@@ -281,13 +295,13 @@ export function correlation(entrees, jours, metriqueA, metriqueB, minPaires = 8)
 
 /** CSV (séparateur `;`, lisible tel quel par Excel en locale FR). */
 export function versCSV(entrees) {
-  const colonnes = ['date', 'poids_kg', 'calories_kcal', 'activite_min', 'type_activite', 'alcool_verres', 'humeur_1_5', 'note'];
+  const colonnes = ['date', 'poids_kg', 'calories_kcal', 'activite_min', 'type_activite', 'alcool_verres', 'cafe_tasses', 'humeur_1_5', 'note'];
   const echapper = (v) => {
     const s = v === null || v === undefined ? '' : String(v);
     return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const lignes = entreesTriees(entrees).map((e) =>
-    [e.date, e.poids, e.calories, e.activite, e.typeActivite, e.alcool, e.humeur, e.note]
+    [e.date, e.poids, e.calories, e.activite, e.typeActivite, e.alcool, e.cafe, e.humeur, e.note]
       .map(echapper)
       .join(';'),
   );
@@ -309,6 +323,7 @@ export function depuisCSV(texte) {
     activite: index('activite'),
     typeActivite: index('type'),
     alcool: index('alcool'),
+    cafe: index('cafe'),
     humeur: index('humeur'),
     note: index('note'),
   };
