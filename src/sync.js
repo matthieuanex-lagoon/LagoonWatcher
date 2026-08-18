@@ -31,11 +31,20 @@ export function sauverConfigSync(config) {
 /** Erreur porteuse d'un message affichable tel quel. */
 class ErreurSync extends Error {}
 
+// Au-delà de cette taille, `keepalive` n'est plus permis par les navigateurs.
+const LIMITE_KEEPALIVE = 60 * 1024;
+
 async function appel(jeton, chemin, options = {}) {
+  const { garderEnVie = false, ...reste } = options;
   let reponse;
   try {
     reponse = await fetch(`${API}${chemin}`, {
-      ...options,
+      ...reste,
+      // Quitter l'appli interrompt les requêtes en cours — Safari le fait sans
+      // ménagement. `keepalive` demande au navigateur de terminer l'envoi même
+      // une fois la page partie, ce qui est exactement le cas de l'envoi
+      // déclenché au moment où l'on quitte.
+      ...(garderEnVie && (reste.body?.length ?? 0) < LIMITE_KEEPALIVE ? { keepalive: true } : {}),
       headers: {
         Accept: 'application/vnd.github+json',
         Authorization: `Bearer ${jeton}`,
@@ -103,10 +112,11 @@ export async function telechargerGist({ jeton, gistId }) {
   return fichier.content ?? null;
 }
 
-export async function envoyerGist({ jeton, gistId }, contenu) {
+export async function envoyerGist({ jeton, gistId }, contenu, { garderEnVie = false } = {}) {
   await appel(jeton, `/gists/${gistId}`, {
     method: 'PATCH',
     body: JSON.stringify({ files: { [FICHIER]: { content: contenu } } }),
+    garderEnVie,
   });
   return new Date().toISOString();
 }

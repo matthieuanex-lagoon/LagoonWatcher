@@ -43,7 +43,7 @@ import {
  * version tourne réellement sur un appareil, et un cache périmé se diagnostique
  * à l'aveugle.
  */
-export const VERSION_APPLI = '2026-08-18 · 4';
+export const VERSION_APPLI = '2026-08-18 · 5';
 
 const $ = (sel, racine = document) => racine.querySelector(sel);
 const $$ = (sel, racine = document) => [...racine.querySelectorAll(sel)];
@@ -890,7 +890,7 @@ function envoiDiffere() {
   minuteurEnvoi = setTimeout(() => envoyerMaintenant({ discret: true }), 4000);
 }
 
-async function envoyerMaintenant({ discret = false } = {}) {
+async function envoyerMaintenant({ discret = false, garderEnVie = false } = {}) {
   if (!configSync) return;
   if (envoiEnCours) {
     // Une saisie pendant un envoi : on repassera juste après, sinon la
@@ -901,7 +901,7 @@ async function envoyerMaintenant({ discret = false } = {}) {
   envoiEnCours = true;
   etatSync('Envoi en cours…', 'attente');
   try {
-    const quand = await envoyerGist(configSync, versJSON({ ...etat, versionAppli: VERSION_APPLI }));
+    const quand = await envoyerGist(configSync, versJSON({ ...etat, versionAppli: VERSION_APPLI }), { garderEnVie });
     configSync = { ...configSync, dernier: quand };
     sauverConfigSync(configSync);
     rendreSync();
@@ -1136,10 +1136,18 @@ function brancher() {
     if (document.hidden) {
       clearTimeout(minuteurEnvoi);
       validerSaisieEnAttente();
-      envoyerMaintenant({ discret: true });
+      envoyerMaintenant({ discret: true, garderEnVie: true });
     } else {
       recupererMaintenant({ discret: true });
     }
+  });
+  // iOS ne déclenche pas toujours visibilitychange en quittant l'appli ;
+  // pagehide, lui, est fiable. Les deux mènent au même envoi.
+  window.addEventListener('pagehide', () => {
+    if (!configSync) return;
+    clearTimeout(minuteurEnvoi);
+    validerSaisieEnAttente();
+    envoyerMaintenant({ discret: true, garderEnVie: true });
   });
   window.addEventListener('focus', () => {
     if (configSync && !document.hidden) recupererMaintenant({ discret: true });
