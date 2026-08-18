@@ -2,7 +2,7 @@
 // une fois installée sur le téléphone. Aucune donnée de suivi ne passe ici —
 // elles vivent dans localStorage, pas dans le cache.
 
-const CACHE = 'lagoonwatcher-v1';
+const CACHE = 'lagoonwatcher-v2';
 
 const FICHIERS = [
   './',
@@ -16,6 +16,7 @@ const FICHIERS = [
   './src/dates.js',
   './src/model.js',
   './src/store.js',
+  './src/sync.js',
 ];
 
 self.addEventListener('install', (e) => {

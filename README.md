@@ -51,6 +51,23 @@ renseigné ».
 
 L'import accepte les deux formats et fusionne : les journées déjà présentes sont remplacées, les autres ajoutées. Il demande confirmation en annonçant le nombre de journées concernées.
 
+## Sauvegarde en ligne (optionnelle)
+
+Pour retrouver son suivi d'un appareil à l'autre, l'appli peut recopier ses journées dans un **gist privé** du compte GitHub de l'utilisateur. Il n'y a rien à héberger : le navigateur parle directement à l'API GitHub.
+
+Mise en route, une fois par appareil : créer une clé sur [github.com → jetons](https://github.com/settings/tokens/new?scopes=gist&description=LagoonWatcher) en cochant **uniquement `gist`**, puis la coller dans `Réglages → Sauvegarde en ligne`. Le premier appareil crée le gist, les suivants le retrouvent par sa description — il n'y en a jamais deux.
+
+Ensuite, c'est automatique : envoi quelques secondes après une saisie (et immédiatement en quittant l'appli), récupération au démarrage.
+
+Ce qui rend la chose sûre à l'usage :
+
+- **La fusion se fait journée par journée, la plus récemment modifiée gagne.** Chaque entrée porte son horodatage de modification, donc une saisie faite hors ligne sur un téléphone n'est pas écrasée par une récupération. Rien n'est jamais remplacé en bloc.
+- **Activer la sauvegarde sur un appareil déjà rempli récupère avant d'envoyer**, pour ne pas écraser l'historique venu d'ailleurs.
+- **La clé vit dans le stockage local, sous une clé distincte des données** : un export JSON ou CSV ne l'emporte jamais avec lui. Elle n'autorise que l'accès aux gists — ni au code, ni au reste du compte.
+- **Une coupure réseau ne perd rien** : les données restent sur l'appareil et le prochain envoi rattrape.
+
+À savoir : un gist privé n'est pas chiffré. Il est invisible pour les autres, mais lisible par GitHub. Pour de la donnée de santé que l'on préfère illisible côté serveur, il faudrait ajouter un chiffrement par mot de passe avant l'envoi.
+
 ## Développement
 
 ```bash
@@ -70,14 +87,17 @@ assets/styles.css          styles et couleurs (thème clair / sombre)
 src/dates.js               manipulation des jours en ISO local
 src/model.js               modèle, agrégats, corrélations, CSV — fonctions pures
 src/store.js               lecture / écriture du localStorage
+src/sync.js                sauvegarde en ligne dans un gist GitHub privé
 src/charts.js              graphiques SVG (ligne, colonnes, points) + survol
 src/app.js                 câblage de l'interface
 sw.js, manifest.webmanifest  installation et fonctionnement hors ligne
 scripts/build-solo.mjs     assemblage de la version en un seul fichier
-tests/model.test.js        24 tests sur le modèle
+tests/model.test.js        27 tests sur le modèle
 ```
 
 Les calculs sont séparés de l'affichage : `model.js` et `dates.js` ne touchent ni au DOM ni au stockage, ce qui rend les tests directs (`node --test`). Les graphiques sont dessinés à la main en SVG — une seule série par graphique, palette validée en clair comme en sombre, étiquetage sélectif, et le Journal sert de vue tableau équivalente.
+
+Le module d'assemblage refuse un import de namespace (`import * as x`) : la mise à plat retire les imports, et les appels `x.foo()` n'auraient plus d'objet — mieux vaut échouer au build qu'à l'exécution.
 
 Stockage versionné sous la clé `lagoonwatcher.v1` : les données illisibles ou hors bornes sont ignorées au chargement plutôt que de faire planter l'appli.
 

@@ -45,6 +45,7 @@ export function entreeVide(date) {
     cafe: null,
     humeur: null,
     note: '',
+    maj: null,
   };
 }
 
@@ -75,7 +76,20 @@ export function normaliserEntree(brut) {
     cafe: nombreOuNull(brut.cafe, { min: 0, max: 30 }),
     humeur: humeur === null ? null : Math.round(humeur),
     note: String(brut.note ?? '').slice(0, 2000),
+    // Horodatage de la dernière modification : sert d'arbitre quand deux
+    // appareils ont touché la même journée. Jamais inventé ici — c'est
+    // l'appelant qui le pose au moment d'enregistrer.
+    maj: horodatageValide(brut.maj) ? brut.maj : null,
   };
+}
+
+function horodatageValide(v) {
+  return typeof v === 'string' && !Number.isNaN(Date.parse(v));
+}
+
+/** Instant de dernière modification, comparable ; 0 si la journée n'en porte pas. */
+export function instantMaj(entree) {
+  return horodatageValide(entree?.maj) ? Date.parse(entree.maj) : 0;
 }
 
 /** Une entrée sans aucune donnée ne mérite pas d'être stockée. */
@@ -295,13 +309,13 @@ export function correlation(entrees, jours, metriqueA, metriqueB, minPaires = 8)
 
 /** CSV (séparateur `;`, lisible tel quel par Excel en locale FR). */
 export function versCSV(entrees) {
-  const colonnes = ['date', 'poids_kg', 'calories_kcal', 'activite_min', 'type_activite', 'alcool_verres', 'cafe_tasses', 'humeur_1_5', 'note'];
+  const colonnes = ['date', 'poids_kg', 'calories_kcal', 'activite_min', 'type_activite', 'alcool_verres', 'cafe_tasses', 'humeur_1_5', 'modifie_le', 'note'];
   const echapper = (v) => {
     const s = v === null || v === undefined ? '' : String(v);
     return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const lignes = entreesTriees(entrees).map((e) =>
-    [e.date, e.poids, e.calories, e.activite, e.typeActivite, e.alcool, e.cafe, e.humeur, e.note]
+    [e.date, e.poids, e.calories, e.activite, e.typeActivite, e.alcool, e.cafe, e.humeur, e.maj, e.note]
       .map(echapper)
       .join(';'),
   );
@@ -325,6 +339,7 @@ export function depuisCSV(texte) {
     alcool: index('alcool'),
     cafe: index('cafe'),
     humeur: index('humeur'),
+    maj: index('modifie'),
     note: index('note'),
   };
   const out = [];
@@ -360,8 +375,18 @@ function decouper(ligne, sep) {
   return out;
 }
 
-/** Fusionne des entrées importées dans un jeu existant. */
-export function fusionner(existantes, importees, { remplacer = true } = {}) {
+/**
+ * Fusionne des entrées dans un jeu existant, journée par journée.
+ *
+ * `strategie` décide du sort d'une journée présente des deux côtés :
+ * - `remplacer` : l'entrante gagne. C'est le comportement d'un import manuel,
+ *   où l'on choisit délibérément un fichier.
+ * - `recente` : la plus récemment modifiée gagne. C'est ce qu'il faut pour la
+ *   synchronisation, où les deux côtés sont légitimes et où seul l'horodatage
+ *   peut départager.
+ * - `conserver` : l'existante gagne.
+ */
+export function fusionner(existantes, importees, { strategie = 'remplacer' } = {}) {
   const out = { ...existantes };
   let ajoutees = 0;
   let misesAJour = 0;
@@ -372,14 +397,19 @@ export function fusionner(existantes, importees, { remplacer = true } = {}) {
       ignorees++;
       continue;
     }
-    if (out[e.date]) {
-      if (!remplacer) {
-        ignorees++;
-        continue;
-      }
+    const actuelle = out[e.date];
+    if (!actuelle) {
+      out[e.date] = e;
+      ajoutees++;
+      continue;
+    }
+    const gagne =
+      strategie === 'remplacer' ||
+      (strategie === 'recente' && instantMaj(e) > instantMaj(actuelle));
+    if (gagne) {
+      out[e.date] = e;
       misesAJour++;
-    } else ajoutees++;
-    out[e.date] = e;
+    } else ignorees++;
   }
   return { entrees: out, ajoutees, misesAJour, ignorees };
 }

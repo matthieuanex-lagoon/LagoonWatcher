@@ -32,9 +32,16 @@ if (!css.includes("[data-theme='dark']") || !css.includes(":not([data-theme='lig
 /* ── Modules ──────────────────────────────────────────────────────── */
 // Concaténation dans l'ordre des dépendances, mots-clés de module retirés.
 // Aucun nom de premier niveau n'est partagé entre les modules (vérifié plus bas).
-const ordre = ['src/dates.js', 'src/model.js', 'src/store.js', 'src/charts.js', 'src/app.js'];
+const ordre = ['src/dates.js', 'src/model.js', 'src/store.js', 'src/sync.js', 'src/charts.js', 'src/app.js'];
 const modules = ordre.map((f) => {
-  let src = lire(f)
+  const original = lire(f);
+  // Un import de namespace (`import * as x`) survivrait mal à la mise à plat :
+  // les appels `x.foo()` n'auraient plus d'objet `x` une fois l'import retiré.
+  // On refuse plutôt que de produire un fichier qui casse à l'exécution.
+  if (/^import\s+\*\s+as\s/m.test(original)) {
+    throw new Error(`${f} : import de namespace incompatible avec l'assemblage — utiliser des imports nommés`);
+  }
+  let src = original
     .replace(/^import\s[\s\S]*?from\s+'[^']+';\n/gm, '')
     .replace(/^export\s+\{[^}]*\};\n/gm, '')
     .replace(/^export\s+(function|const|class|async)/gm, '$1');

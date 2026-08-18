@@ -2,7 +2,7 @@
 // réglages. Les calculs vivent dans model.js, la persistance dans store.js.
 
 import { dessinerGraphique, dessinerSparkline } from './charts.js';
-import { addDays, formatDay, lastNDays, startOfWeek, todayISO } from './dates.js';
+import { addDays, formatDay, lastNDays, startOfWeek, toISO, todayISO } from './dates.js';
 import {
   bilan,
   correlation,
@@ -25,6 +25,13 @@ import {
   versCSV,
 } from './model.js';
 import { charger, depuisJSON, sauver, versJSON } from './store.js';
+import {
+  chargerConfigSync,
+  connecterGist,
+  envoyerGist,
+  sauverConfigSync,
+  telechargerGist,
+} from './sync.js';
 
 const $ = (sel, racine = document) => racine.querySelector(sel);
 const $$ = (sel, racine = document) => [...racine.querySelectorAll(sel)];
@@ -245,13 +252,19 @@ function joursDepuis(debut, fin) {
  * déplacerait le curseur et effacerait une saisie encore incomplète.
  */
 function majEntree(champs, { silencieux = false, rerendre = true } = {}) {
-  const fusion = normaliserEntree({ ...entreeCourante(), ...champs, date: dateCourante });
+  const fusion = normaliserEntree({
+    ...entreeCourante(),
+    ...champs,
+    date: dateCourante,
+    maj: new Date().toISOString(),
+  });
   if (!fusion) return;
   if (entreeVideOuPas(fusion)) delete etat.entrees[dateCourante];
   else etat.entrees[dateCourante] = fusion;
   persister({ silencieux });
   if (rerendre) rendreJour();
   else rendreIndices();
+  envoiDiffere();
 }
 
 function lireFormulaire() {
@@ -684,6 +697,7 @@ function rendreReglages() {
   $('#objectif-cafe').value = etat.objectifs.cafe ?? '';
   appliquerTheme();
 
+  rendreSync();
   const liste = entreesTriees(etat.entrees);
   $('#resume-donnees').textContent = liste.length
     ? `${liste.length} journées enregistrées, du ${formatDay(liste[0].date, { relative: false, withYear: true })} au ${formatDay(
@@ -708,9 +722,10 @@ function lireObjectifs() {
     cafe: lire('#objectif-cafe', null),
   };
   persister({ silencieux: true });
+  envoiDiffere();
 }
 
-function telecharger(nomFichier, contenu, type) {
+function telechargerFichier(nomFichier, contenu, type) {
   const url = URL.createObjectURL(new Blob([contenu], { type }));
   const a = h('a', { href: url, download: nomFichier });
   document.body.append(a);
@@ -749,13 +764,141 @@ async function importerFichier(fichier) {
   }`;
   if (!confirm(message)) return;
 
-  const res = fusionner(etat.entrees, importees);
+  const res = fusionner(etat.entrees, importees, { strategie: 'remplacer' });
   etat.entrees = res.entrees;
   if (objectifs) etat.objectifs = { ...OBJECTIFS_DEFAUT, ...objectifs };
   persister({ silencieux: true });
   rendreJour();
   rendreReglages();
   toast(`${res.ajoutees} ajoutée(s), ${res.misesAJour} mise(s) à jour${res.ignorees ? `, ${res.ignorees} ignorée(s)` : ''}.`);
+  envoiDiffere();
+}
+
+/* ── Sauvegarde en ligne ───────────────────────────────────────────── */
+
+let configSync = chargerConfigSync();
+let minuteurEnvoi;
+let envoiEnCours = false;
+let envoiEnAttente = false;
+
+function etatSync(texte, etat = '') {
+  const zone = $('#sync-etat');
+  if (!zone) return;
+  zone.textContent = texte;
+  zone.dataset.etat = etat;
+}
+
+function rendreSync() {
+  const actif = Boolean(configSync);
+  $('#sync-deconnecte').hidden = actif;
+  $('#sync-connecte').hidden = !actif;
+  if (!actif) return;
+  $('#sync-lien').textContent = configSync.gistId ? `Gist : ${configSync.gistId}` : '';
+  if (configSync.dernier) {
+    const d = new Date(configSync.dernier);
+    etatSync(`Sauvegardé ${formatDay(toISO(d), { relative: true })} à ${d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`, 'ok');
+  } else etatSync('Sauvegarde active, aucun envoi pour le moment.', 'attente');
+}
+
+/** Envoi groupé : on attend la fin de la saisie plutôt que d'appeler à chaque touche. */
+function envoiDiffere() {
+  if (!configSync) return;
+  clearTimeout(minuteurEnvoi);
+  etatSync('Modification à envoyer…', 'attente');
+  minuteurEnvoi = setTimeout(() => envoyerMaintenant({ discret: true }), 4000);
+}
+
+async function envoyerMaintenant({ discret = false } = {}) {
+  if (!configSync) return;
+  if (envoiEnCours) {
+    // Une saisie pendant un envoi : on repassera juste après, sinon la
+    // dernière modification resterait au sol.
+    envoiEnAttente = true;
+    return;
+  }
+  envoiEnCours = true;
+  etatSync('Envoi en cours…', 'attente');
+  try {
+    const quand = await envoyerGist(configSync, versJSON(etat));
+    configSync = { ...configSync, dernier: quand };
+    sauverConfigSync(configSync);
+    rendreSync();
+    if (!discret) toast('Sauvegarde envoyée.');
+  } catch (err) {
+    etatSync(err.message, 'erreur');
+    if (!discret) toast(err.message);
+  } finally {
+    envoiEnCours = false;
+    if (envoiEnAttente) {
+      envoiEnAttente = false;
+      envoiDiffere();
+    }
+  }
+}
+
+/**
+ * Récupère la sauvegarde et la fusionne journée par journée : la version la
+ * plus récemment modifiée gagne. Rien n'est écrasé en bloc, donc une saisie
+ * faite hors ligne sur ce téléphone survit à une récupération.
+ */
+async function recupererMaintenant({ discret = false } = {}) {
+  if (!configSync) return;
+  etatSync('Récupération…', 'attente');
+  try {
+    const contenu = await telechargerGist(configSync);
+    if (!contenu) {
+      etatSync('Sauvegarde en ligne encore vide.', 'attente');
+      return;
+    }
+    const lu = depuisJSON(contenu);
+    const res = fusionner(etat.entrees, lu.entrees, { strategie: 'recente' });
+    const change = res.ajoutees + res.misesAJour;
+    etat.entrees = res.entrees;
+    if (lu.objectifs) etat.objectifs = { ...OBJECTIFS_DEFAUT, ...lu.objectifs };
+    persister({ silencieux: true });
+    rendreJour();
+    rendreReglages();
+    if (!discret || change) toast(change ? `${change} journée(s) récupérée(s).` : 'Déjà à jour.');
+    rendreSync();
+  } catch (err) {
+    etatSync(err.message, 'erreur');
+    if (!discret) toast(err.message);
+  }
+}
+
+async function connecterSync() {
+  const jeton = $('#champ-jeton').value.trim();
+  if (!jeton) return toast("Collez d'abord la clé d'accès.");
+  const bouton = $('#sync-connecter');
+  bouton.disabled = true;
+  bouton.textContent = 'Connexion…';
+  try {
+    const config = await connecterGist(jeton, versJSON(etat));
+    configSync = { jeton: config.jeton, gistId: config.gistId, dernier: null };
+    sauverConfigSync(configSync);
+    $('#champ-jeton').value = '';
+    rendreSync();
+    // Un gist préexistant vient d'un autre appareil : on récupère avant
+    // d'envoyer, sinon cet appareil-ci écraserait l'historique de l'autre.
+    if (config.cree) await envoyerMaintenant();
+    else await recupererMaintenant();
+    await envoyerMaintenant({ discret: true });
+    toast(config.cree ? 'Sauvegarde en ligne créée.' : 'Sauvegarde existante retrouvée.');
+  } catch (err) {
+    toast(err.message);
+  } finally {
+    bouton.disabled = false;
+    bouton.textContent = 'Activer la sauvegarde';
+  }
+}
+
+function deconnecterSync() {
+  if (!confirm('Désactiver la sauvegarde en ligne sur cet appareil ?\n\nLa clé est oubliée ici. Le gist et son contenu restent sur GitHub.')) return;
+  clearTimeout(minuteurEnvoi);
+  configSync = null;
+  sauverConfigSync(null);
+  rendreSync();
+  toast('Sauvegarde en ligne désactivée sur cet appareil.');
 }
 
 /* ── Écouteurs ─────────────────────────────────────────────────────── */
@@ -869,11 +1012,11 @@ function brancher() {
     });
   }
   $('#export-json').addEventListener('click', () => {
-    telecharger(`lagoonwatcher-${horodatage()}.json`, versJSON(etat), 'application/json');
+    telechargerFichier(`lagoonwatcher-${horodatage()}.json`, versJSON(etat), 'application/json');
     toast('Export JSON téléchargé.');
   });
   $('#export-csv').addEventListener('click', () => {
-    telecharger(`lagoonwatcher-${horodatage()}.csv`, versCSV(etat.entrees), 'text/csv;charset=utf-8');
+    telechargerFichier(`lagoonwatcher-${horodatage()}.csv`, versCSV(etat.entrees), 'text/csv;charset=utf-8');
     toast('Export CSV téléchargé.');
   });
   $('#bouton-import').addEventListener('click', () => $('#fichier-import').click());
@@ -882,6 +1025,27 @@ function brancher() {
     e.target.value = '';
     if (fichier) await importerFichier(fichier);
   });
+  $('#sync-connecter').addEventListener('click', connecterSync);
+  $('#champ-jeton').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      connecterSync();
+    }
+  });
+  $('#sync-envoyer').addEventListener('click', () => envoyerMaintenant());
+  $('#sync-recuperer').addEventListener('click', () => recupererMaintenant());
+  $('#sync-deconnecter').addEventListener('click', deconnecterSync);
+  // Une saisie en cours au moment de quitter la page part tout de suite.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && configSync) {
+      clearTimeout(minuteurEnvoi);
+      envoyerMaintenant({ discret: true });
+    }
+  });
+  window.addEventListener('online', () => {
+    if (configSync) envoiDiffere();
+  });
+
   $('#tout-effacer').addEventListener('click', () => {
     const n = Object.keys(etat.entrees).length;
     if (!n) return toast('Il n\'y a rien à effacer.');
@@ -920,6 +1084,8 @@ brancher();
 appliquerTheme();
 rendreJour();
 afficherVue(location.hash.slice(1) || 'jour');
+
+if (configSync) recupererMaintenant({ discret: true });
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   window.addEventListener('load', () => {

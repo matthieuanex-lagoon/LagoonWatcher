@@ -910,6 +910,38 @@ td .lien-jour {
   gap: 8px;
 }
 
+.etat-sync {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin: 0 0 10px;
+  font-size: 0.85rem;
+}
+
+.etat-sync::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--encre-3);
+  flex: none;
+  transform: translateY(-1px);
+}
+
+.etat-sync[data-etat='ok']::before {
+  background: var(--bon);
+}
+.etat-sync[data-etat='attente']::before {
+  background: var(--attention);
+}
+.etat-sync[data-etat='erreur']::before {
+  background: var(--critique);
+}
+
+.etat-sync[data-etat='erreur'] {
+  color: var(--texte-alerte);
+}
+
 /* ── Onglets ───────────────────────────────────────────────────────── */
 
 .onglets {

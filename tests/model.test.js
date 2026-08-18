@@ -10,6 +10,7 @@ import {
   entreeVide,
   entreeVideOuPas,
   fusionner,
+  instantMaj,
   moyenne,
   moyenneGlissante,
   normaliserEntree,
@@ -228,7 +229,7 @@ test('correlation : silencieuse en dessous du seuil de paires', () => {
 
 test('CSV : aller-retour sans perte', () => {
   const entrees = jeu({
-    '2026-08-16': { poids: 73.2, calories: 2150, activite: 40, typeActivite: 'Vélo', alcool: 2, cafe: 3, humeur: 4, note: 'Sortie; ok' },
+    '2026-08-16': { poids: 73.2, calories: 2150, activite: 40, typeActivite: 'Vélo', alcool: 2, cafe: 3, humeur: 4, maj: '2026-08-16T20:15:00.000Z', note: 'Sortie; ok' },
     '2026-08-17': { alcool: 0, humeur: 5 },
   });
   const relu = depuisCSV(versCSV(entrees));
@@ -251,6 +252,41 @@ test('CSV : accepte la virgule comme séparateur', () => {
   assert.equal(relu[0].calories, 2100);
 });
 
+test('fusion « recente » : la journée modifiée en dernier gagne', () => {
+  const locales = {
+    '2026-08-17': normaliserEntree({ date: '2026-08-17', cafe: 2, maj: '2026-08-17T09:00:00.000Z' }),
+    '2026-08-16': normaliserEntree({ date: '2026-08-16', cafe: 1, maj: '2026-08-16T09:00:00.000Z' }),
+  };
+  const distantes = [
+    { date: '2026-08-17', cafe: 5, maj: '2026-08-17T18:00:00.000Z' }, // plus récente → gagne
+    { date: '2026-08-16', cafe: 9, maj: '2026-08-16T07:00:00.000Z' }, // plus ancienne → perd
+    { date: '2026-08-15', cafe: 3, maj: '2026-08-15T08:00:00.000Z' }, // absente → ajoutée
+  ];
+  const res = fusionner(locales, distantes, { strategie: 'recente' });
+  assert.equal(res.entrees['2026-08-17'].cafe, 5);
+  assert.equal(res.entrees['2026-08-16'].cafe, 1, 'une saisie locale plus récente survit à la récupération');
+  assert.equal(res.entrees['2026-08-15'].cafe, 3);
+  assert.equal(res.ajoutees, 1);
+  assert.equal(res.misesAJour, 1);
+  assert.equal(res.ignorees, 1);
+});
+
+test('fusion « recente » : une journée sans horodatage ne détrône pas une journée datée', () => {
+  const locales = { '2026-08-17': normaliserEntree({ date: '2026-08-17', cafe: 2, maj: '2026-08-17T09:00:00.000Z' }) };
+  const res = fusionner(locales, [{ date: '2026-08-17', cafe: 8 }], { strategie: 'recente' });
+  assert.equal(res.entrees['2026-08-17'].cafe, 2);
+  assert.equal(instantMaj(res.entrees['2026-08-17']), Date.parse('2026-08-17T09:00:00.000Z'));
+  assert.equal(instantMaj({ maj: 'n\'importe quoi' }), 0);
+  assert.equal(instantMaj(undefined), 0);
+});
+
+test('fusion « conserver » : l\'existante l\'emporte toujours', () => {
+  const locales = { '2026-08-17': normaliserEntree({ date: '2026-08-17', cafe: 2 }) };
+  const res = fusionner(locales, [{ date: '2026-08-17', cafe: 8, maj: '2030-01-01T00:00:00.000Z' }], { strategie: 'conserver' });
+  assert.equal(res.entrees['2026-08-17'].cafe, 2);
+  assert.equal(res.ignorees, 1);
+});
+
 test('fusionner : remplace les journées existantes et ignore le vide', () => {
   const existantes = jeu({ '2026-08-17': { calories: 2000 } });
   const res = fusionner(existantes, [
@@ -266,9 +302,9 @@ test('fusionner : remplace les journées existantes et ignore le vide', () => {
   assert.equal(existantes['2026-08-17'].calories, 2000, 'le jeu source ne doit pas être modifié');
 });
 
-test('fusionner : mode sans remplacement', () => {
+test('fusionner : mode conservateur', () => {
   const existantes = jeu({ '2026-08-17': { calories: 2000 } });
-  const res = fusionner(existantes, [{ date: '2026-08-17', calories: 2500 }], { remplacer: false });
+  const res = fusionner(existantes, [{ date: '2026-08-17', calories: 2500 }], { strategie: 'conserver' });
   assert.equal(res.entrees['2026-08-17'].calories, 2000);
   assert.equal(res.ignorees, 1);
 });

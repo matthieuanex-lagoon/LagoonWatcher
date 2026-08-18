@@ -236,6 +236,36 @@
           </div>
 
           <div class="carte">
+            <h2>Sauvegarde en ligne</h2>
+            <p class="sous-titre">
+              Copie automatique de vos journées dans un <strong>gist privé</strong> de votre compte GitHub, pour les
+              retrouver sur un autre appareil. Rien n'est publié : un gist privé n'est visible que par vous.
+            </p>
+
+            <div id="sync-deconnecte">
+              <label for="champ-jeton">Clé d'accès GitHub</label>
+              <input type="password" id="champ-jeton" autocomplete="off" spellcheck="false" placeholder="ghp_…" />
+              <p class="discret" style="margin: 8px 0 10px">
+                À créer sur
+                <a href="https://github.com/settings/tokens/new?scopes=gist&description=LagoonWatcher" target="_blank" rel="noopener noreferrer">github.com → jetons</a>
+                en cochant uniquement <strong>gist</strong>, puis à coller ici. Elle reste sur cet appareil et ne
+                donne accès qu'à vos gists — ni à votre code, ni au reste du compte.
+              </p>
+              <button type="button" class="bouton principal" id="sync-connecter">Activer la sauvegarde</button>
+            </div>
+
+            <div id="sync-connecte" hidden>
+              <p class="etat-sync" id="sync-etat" role="status" aria-live="polite"></p>
+              <div class="actions">
+                <button type="button" class="bouton" id="sync-envoyer">Envoyer maintenant</button>
+                <button type="button" class="bouton" id="sync-recuperer">Récupérer maintenant</button>
+                <button type="button" class="bouton danger" id="sync-deconnecter">Désactiver</button>
+              </div>
+              <p class="discret" style="margin-top: 10px" id="sync-lien"></p>
+            </div>
+          </div>
+
+          <div class="carte">
             <h2>Zone rouge</h2>
             <p class="sous-titre">Supprime toutes les journées enregistrées. Irréversible : exportez d'abord.</p>
             <button type="button" class="bouton danger" id="tout-effacer">Tout effacer</button>
