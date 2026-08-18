@@ -1,6 +1,6 @@
 # LagoonWatcher
 
-Mini application perso pour noter chaque jour **les calories, le poids, les activités sportives, l'alcool, le café et l'humeur**, et voir ce que ça donne sur la durée.
+Mini application perso pour noter chaque jour **les calories, le poids, les activités sportives, l'alcool, le café, l'humeur et le stress**, et voir ce que ça donne sur la durée.
 
 Pas de compte, pas de serveur, pas de dépendance : une page web statique qui stocke tout dans le navigateur et fonctionne hors ligne.
 
@@ -37,7 +37,8 @@ Détails qui comptent à l'usage :
 - **Les calories dépensées sont estimées, puis modifiables.** L'estimation vient de l'intensité du type d'activité (valeurs MET usuelles), de la durée et du poids le plus récent connu. Elle s'affiche en pointillé avec un « ≈ » : c'est une approximation, pas une mesure. Dès que la valeur est corrigée à la main, elle n'est plus jamais recalculée. Sans poids saisi, rien n'est estimé — un champ vide vaut mieux qu'un chiffre inventé.
 - **Le graphique « absorbées / dépensées »** met les deux séries côte à côte sur une seule échelle, avec légende. Attention à la lecture : le sport n'est qu'une part de la dépense quotidienne, le corps brûle bien davantage au repos. Ce n'est donc pas une balance énergétique.
 - **Le poids se lit en tendance.** La variation d'un jour à l'autre, c'est surtout de l'eau : le bilan compare deux moyennes de 7 jours et le graphique superpose une moyenne glissante.
-- **Les liens entre métriques** (alcool ↔ humeur, café ↔ humeur, activité ↔ humeur…) n'apparaissent qu'à partir de 8 journées croisées, avec le coefficient et le nombre de jours. C'est une coïncidence mesurée, pas une explication.
+- **Le stress se lit à l'envers de l'humeur.** Sur les deux échelles de 1 à 5, 5 est la meilleure humeur mais le pire stress. Les libellés le disent à chaque bouton, et les statistiques en tiennent compte : le bilan compte les « journées tendues » (4-5) là où il compte les « bonnes journées » pour l'humeur.
+- **Les liens entre métriques** (alcool ↔ humeur, café ↔ stress, activité ↔ stress…) n'apparaissent qu'à partir de 8 journées croisées, avec le coefficient et le nombre de jours. C'est une coïncidence mesurée, pas une explication.
 
 ## Vos données restent chez vous
 
@@ -132,7 +133,7 @@ src/charts.js              graphiques SVG (ligne, colonnes, points) + survol
 src/app.js                 câblage de l'interface
 sw.js, manifest.webmanifest  installation et fonctionnement hors ligne
 scripts/build-solo.mjs     assemblage de la version en un seul fichier
-tests/model.test.js        36 tests sur le modèle
+tests/model.test.js        42 tests sur le modèle
 tests/version.test.js      cohérence version.json / code / cache hors ligne
 ```
 

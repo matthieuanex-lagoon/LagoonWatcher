@@ -4,7 +4,7 @@
 import { addDays, daySpan, daysBetween, startOfWeek, todayISO } from './dates.js';
 
 /** Les six métriques suivies, dans l'ordre d'affichage. */
-export const METRIQUES = ['poids', 'calories', 'activite', 'alcool', 'cafe', 'humeur'];
+export const METRIQUES = ['poids', 'calories', 'activite', 'alcool', 'cafe', 'humeur', 'stress'];
 
 /**
  * Types d'activité et leur intensité (MET, « Compendium of Physical
@@ -43,6 +43,19 @@ export const HUMEURS = [
   { valeur: 5, emoji: '😄', label: 'Très bien' },
 ];
 
+/**
+ * Le stress se lit à l'envers de l'humeur : 5 y est le plus mauvais score,
+ * là où 5 est le meilleur pour l'humeur. Tout ce qui interprète ces échelles
+ * doit en tenir compte — d'où deux listes séparées plutôt qu'une réutilisée.
+ */
+export const STRESS = [
+  { valeur: 1, emoji: '😌', label: 'Serein' },
+  { valeur: 2, emoji: '🙂', label: 'Léger' },
+  { valeur: 3, emoji: '😕', label: 'Modéré' },
+  { valeur: 4, emoji: '😣', label: 'Tendu' },
+  { valeur: 5, emoji: '😫', label: 'Très tendu' },
+];
+
 export const OBJECTIFS_DEFAUT = {
   calories: 2200, // kcal / jour
   poids: null, // kg visés, optionnel
@@ -64,6 +77,7 @@ export function entreeVide(date) {
     alcool: null,
     cafe: null,
     humeur: null,
+    stress: null,
     note: '',
     maj: null,
   };
@@ -86,6 +100,7 @@ export function normaliserEntree(brut) {
   const date = String(brut?.date ?? '').slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
   const humeur = nombreOuNull(brut.humeur, { min: 1, max: 5 });
+  const stress = nombreOuNull(brut.stress, { min: 1, max: 5 });
   return {
     date,
     poids: nombreOuNull(brut.poids, { min: 20, max: 400 }),
@@ -94,6 +109,7 @@ export function normaliserEntree(brut) {
     alcool: nombreOuNull(brut.alcool, { min: 0, max: 60 }),
     cafe: nombreOuNull(brut.cafe, { min: 0, max: 30 }),
     humeur: humeur === null ? null : Math.round(humeur),
+    stress: stress === null ? null : Math.round(stress),
     note: String(brut.note ?? '').slice(0, 2000),
     // Horodatage de la dernière modification : sert d'arbitre quand deux
     // appareils ont touché la même journée. Jamais inventé ici — c'est
@@ -157,6 +173,7 @@ export function entreeVideOuPas(e) {
     e.alcool === null &&
     e.cafe === null &&
     e.humeur === null &&
+    e.stress === null &&
     !e.note.trim()
   );
 }
@@ -246,6 +263,7 @@ export function bilan(entrees, jours, objectifs = OBJECTIFS_DEFAUT) {
   const cafe = valeurs('cafe');
   const cafeSaisi = cafe.filter((v) => typeof v === 'number');
   const humeur = valeurs('humeur').filter((v) => typeof v === 'number');
+  const stress = valeurs('stress').filter((v) => typeof v === 'number');
 
   const joursAvecAlcool = alcool.filter((v) => typeof v === 'number');
   const totalAlcool = somme(alcool);
@@ -300,6 +318,13 @@ export function bilan(entrees, jours, objectifs = OBJECTIFS_DEFAUT) {
       jours: humeur.length,
       basse: humeur.filter((v) => v <= 2).length,
       haute: humeur.filter((v) => v >= 4).length,
+    },
+    // Échelle inversée : ici, « haut » veut dire mauvais.
+    stress: {
+      moyenne: moyenne(stress),
+      jours: stress.length,
+      tendues: stress.filter((v) => v >= 4).length,
+      sereines: stress.filter((v) => v <= 2).length,
     },
   };
 }
@@ -413,13 +438,13 @@ export function elaguerSuppressions(suppressions = {}, maxJours = 365) {
 
 /** CSV (séparateur `;`, lisible tel quel par Excel en locale FR). */
 export function versCSV(entrees) {
-  const colonnes = ['date', 'poids_kg', 'calories_kcal', 'activite_min', 'type_activite', 'sport_kcal', 'seances', 'alcool_verres', 'cafe_tasses', 'humeur_1_5', 'modifie_le', 'note'];
+  const colonnes = ['date', 'poids_kg', 'calories_kcal', 'activite_min', 'type_activite', 'sport_kcal', 'seances', 'alcool_verres', 'cafe_tasses', 'humeur_1_5', 'stress_1_5', 'modifie_le', 'note'];
   const echapper = (v) => {
     const s = v === null || v === undefined ? '' : String(v);
     return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const lignes = entreesTriees(entrees).map((e) =>
-    [e.date, e.poids, e.calories, e.activite, e.typeActivite, e.sportKcal, encoderSeances(e.activites), e.alcool, e.cafe, e.humeur, e.maj, e.note]
+    [e.date, e.poids, e.calories, e.activite, e.typeActivite, e.sportKcal, encoderSeances(e.activites), e.alcool, e.cafe, e.humeur, e.stress, e.maj, e.note]
       .map(echapper)
       .join(';'),
   );
@@ -444,6 +469,7 @@ export function depuisCSV(texte) {
     alcool: index('alcool'),
     cafe: index('cafe'),
     humeur: index('humeur'),
+    stress: index('stress'),
     maj: index('modifie'),
     note: index('note'),
   };

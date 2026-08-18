@@ -23,6 +23,7 @@
   --serie-alcool: #eda100;
   --serie-cafe: #008300;
   --serie-humeur: #e87ba4;
+  --serie-stress: #4a3aa7;
 
   --bon: #0ca30c;
   --attention: #fab219;
@@ -55,6 +56,7 @@
     --serie-alcool: #c98500;
     --serie-cafe: #008300;
     --serie-humeur: #d55181;
+    --serie-stress: #9085e9;
     --texte-succes: #0ca30c;
     --texte-alerte: #e66767;
     --ombre: 0 1px 2px rgba(0, 0, 0, 0.4);
@@ -79,6 +81,7 @@
   --serie-alcool: #c98500;
   --serie-cafe: #008300;
   --serie-humeur: #d55181;
+  --serie-stress: #9085e9;
   --texte-succes: #0ca30c;
   --texte-alerte: #e66767;
   --ombre: 0 1px 2px rgba(0, 0, 0, 0.4);
@@ -376,6 +379,9 @@ label {
 .metrique[data-metrique='humeur'] {
   --teinte: var(--serie-humeur);
 }
+.metrique[data-metrique='stress'] {
+  --teinte: var(--serie-stress);
+}
 
 .metrique .pastille {
   display: grid;
@@ -498,8 +504,8 @@ label {
 }
 
 .humeurs button[aria-pressed='true'] {
-  background: color-mix(in srgb, var(--serie-humeur) 18%, var(--surface));
-  border-color: var(--serie-humeur);
+  background: color-mix(in srgb, var(--teinte, var(--serie-humeur)) 18%, var(--surface));
+  border-color: var(--teinte, var(--serie-humeur));
 }
 
 .pied-formulaire {
@@ -722,7 +728,7 @@ label {
 .tuiles {
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(auto-fit, minmax(136px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
 }
 
 .tuile {

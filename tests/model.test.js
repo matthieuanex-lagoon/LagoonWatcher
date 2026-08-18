@@ -24,6 +24,7 @@ import {
   serie,
   serieEnCours,
   somme,
+  STRESS,
   tendancePoids,
   versCSV,
 } from '../src/model.js';
@@ -410,4 +411,38 @@ test('bilan : dépense sportive agrégée', () => {
   assert.equal(b.activite.seances, 3);
   assert.equal(b.activite.joursAvecKcal, 2);
   assert.equal(b.activite.total, 90);
+});
+
+
+test('stress : échelle 1 à 5, inversée par rapport à l\'humeur', () => {
+  assert.equal(STRESS.length, 5);
+  assert.equal(STRESS[0].label, 'Serein');
+  assert.equal(STRESS.at(-1).label, 'Très tendu');
+  assert.equal(normaliserEntree({ date: '2026-08-18', stress: '4' }).stress, 4);
+  assert.equal(normaliserEntree({ date: '2026-08-18', stress: '0' }).stress, null);
+  assert.equal(normaliserEntree({ date: '2026-08-18', stress: '6' }).stress, null);
+  // Un stress saisi suffit à rendre la journée non vide.
+  assert.equal(entreeVideOuPas(normaliserEntree({ date: '2026-08-18', stress: 3 })), false);
+});
+
+test('bilan : les journées tendues sont les hautes valeurs', () => {
+  const entrees = jeu({
+    '2026-08-15': { stress: 5, humeur: 2 },
+    '2026-08-16': { stress: 1, humeur: 5 },
+    '2026-08-17': { stress: 4, humeur: 3 },
+  });
+  const b = bilan(entrees, lastNDays(7, '2026-08-17'));
+  assert.equal(b.stress.moyenne, (5 + 1 + 4) / 3);
+  assert.equal(b.stress.tendues, 2, '4 et 5 comptent comme tendues');
+  assert.equal(b.stress.sereines, 1);
+  assert.equal(b.stress.jours, 3);
+  // L'humeur garde son sens : haute = bonne.
+  assert.equal(b.humeur.haute, 1);
+  assert.equal(b.humeur.basse, 1);
+});
+
+test('CSV : le stress fait l\'aller-retour', () => {
+  const entrees = jeu({ '2026-08-18': { stress: 4, humeur: 2, maj: '2026-08-18T09:00:00.000Z' } });
+  const relu = depuisCSV(versCSV(entrees));
+  assert.deepEqual(relu[0], entrees['2026-08-18']);
 });

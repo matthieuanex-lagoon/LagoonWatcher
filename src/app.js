@@ -25,6 +25,7 @@ import {
   serie,
   serieEnCours,
   somme,
+  STRESS,
   tendancePoids,
   TYPES_ACTIVITE,
   versCSV,
@@ -44,7 +45,7 @@ import {
  * version tourne réellement sur un appareil, et un cache périmé se diagnostique
  * à l'aveugle.
  */
-export const VERSION_APPLI = '2026-08-18 · 7';
+export const VERSION_APPLI = '2026-08-18 · 8';
 
 const $ = (sel, racine = document) => racine.querySelector(sel);
 const $$ = (sel, racine = document) => [...racine.querySelectorAll(sel)];
@@ -169,24 +170,33 @@ function allerAuJour(nouvelleDate) {
 }
 
 function construireChampsStatiques() {
-  const zone = $('#choix-humeur');
-  for (const m of HUMEURS) {
+  construireEchelle('#choix-humeur', HUMEURS, 'humeur');
+  construireEchelle('#choix-stress', STRESS, 'stress');
+}
+
+/** Cinq boutons exclusifs, où recliquer le choix courant l'annule. */
+function construireEchelle(selecteur, niveaux, metrique) {
+  const zone = $(selecteur);
+  for (const n of niveaux) {
     zone.append(
       h(
         'button',
         {
           type: 'button',
-          dataset: { humeur: String(m.valeur) },
+          dataset: { valeur: String(n.valeur) },
           'aria-pressed': 'false',
-          'aria-label': `${m.label} (${m.valeur} sur 5)`,
-          title: m.label,
+          'aria-label': `${n.label} (${n.valeur} sur 5)`,
+          title: n.label,
           onclick: () => {
             clearTimeout(minuteurAuto);
-            majEntree({ ...lireFormulaire(), humeur: entreeCourante().humeur === m.valeur ? null : m.valeur });
+            majEntree({
+              ...lireFormulaire(),
+              [metrique]: entreeCourante()[metrique] === n.valeur ? null : n.valeur,
+            });
           },
         },
-        m.emoji,
-        h('span', {}, m.label),
+        n.emoji,
+        h('span', {}, n.label),
       ),
     );
   }
@@ -343,7 +353,8 @@ function rendreJour() {
   $('#champ-cafe').value = e.cafe ?? '';
   $('#champ-note').value = e.note ?? '';
 
-  $$('#choix-humeur button').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.humeur) === e.humeur)));
+  $$('#choix-humeur button').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.valeur) === e.humeur)));
+  $$('#choix-stress button').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.valeur) === e.stress)));
   $('#alcool-zero').setAttribute('aria-pressed', String(e.alcool === 0));
   rendreSeances();
   $('#cafe-zero').setAttribute('aria-pressed', String(e.cafe === 0));
@@ -408,6 +419,9 @@ function rendreIndices() {
 
   const moyHumeur = moyenne(sept.map((d) => entrees[d]?.humeur ?? null));
   $('#indice-humeur').textContent = moyHumeur !== null ? `moy. 7 j ${nb(moyHumeur, 1)} / 5` : '';
+
+  const moyStress = moyenne(sept.map((d) => entrees[d]?.stress ?? null));
+  $('#indice-stress').textContent = moyStress !== null ? `moy. 7 j ${nb(moyStress, 1)} / 5 · 5 = très tendu` : '5 = très tendu';
 }
 
 function joursDepuis(debut, fin) {
@@ -682,6 +696,14 @@ function rendreBilan() {
           : null,
       }),
       tuile({
+        etiquette: 'Stress moyen',
+        teinte: 'stress',
+        valeur: nb(b.stress.moyenne, 1),
+        unite: '/ 5',
+        detail: `${b.stress.tendues} journées tendues · ${b.stress.sereines} sereines`,
+        sparkline: { points: serie(entrees, 'stress', jours), type: 'ligne' },
+      }),
+      tuile({
         etiquette: 'Humeur moyenne',
         teinte: 'humeur',
         valeur: nb(b.humeur.moyenne, 1),
@@ -777,6 +799,19 @@ function rendreBilan() {
       },
     }),
     carteGraphique({
+      titre: 'Stress',
+      teinte: 'stress',
+      resume: b.stress.jours ? `moy. ${nb(b.stress.moyenne, 1)} / 5` : null,
+      config: {
+        type: 'points',
+        points: serie(entrees, 'stress', jours),
+        unite: '/ 5',
+        format: (v) => nb(v, 0),
+        yDomaine: [0.6, 5.4],
+        yGraduations: [1, 2, 3, 4, 5],
+      },
+    }),
+    carteGraphique({
       titre: 'Humeur',
       teinte: 'humeur',
       resume: b.humeur.jours ? `moy. ${nb(b.humeur.moyenne, 1)} / 5` : null,
@@ -807,6 +842,10 @@ function rendreRelations(entrees, jours) {
     { a: 'alcool', b: 'calories', texte: (r) => `Les jours avec alcool sont ${r > 0 ? 'plus' : 'moins'} caloriques.` },
     { a: 'cafe', b: 'humeur', texte: (r) => `Les jours avec plus de café vont avec une humeur ${r > 0 ? 'meilleure' : 'plus basse'}.` },
     { a: 'cafe', b: 'activite', texte: (r) => `Les jours avec plus de café sont ${r > 0 ? 'plus' : 'moins'} actifs.` },
+    { a: 'stress', b: 'humeur', texte: (r) => `Les jours les plus tendus vont avec une humeur ${r < 0 ? 'plus basse' : 'plus haute'}.` },
+    { a: 'cafe', b: 'stress', texte: (r) => `Les jours avec plus de café sont ${r > 0 ? 'plus' : 'moins'} tendus.` },
+    { a: 'alcool', b: 'stress', texte: (r) => `Les jours avec plus d'alcool sont ${r > 0 ? 'plus' : 'moins'} tendus.` },
+    { a: 'activite', b: 'stress', texte: (r) => `Les jours avec plus d'activité sont ${r > 0 ? 'plus' : 'moins'} tendus.` },
   ];
   const trouvees = [];
   for (const p of pistes) {
@@ -881,6 +920,7 @@ function rendreJournal() {
         cellule(e.alcool !== null ? nb(e.alcool) : null),
         cellule(e.cafe !== null ? nb(e.cafe) : null),
         cellule(e.humeur !== null ? `${HUMEURS[e.humeur - 1].emoji} ${e.humeur}` : null),
+        cellule(e.stress !== null ? `${STRESS[e.stress - 1].emoji} ${e.stress}` : null),
         h('td', { class: e.note ? null : 'vide', style: 'max-width:220px; white-space:normal; text-align:left', title: e.note || null }, e.note || '—'),
       ),
     ),
@@ -896,7 +936,7 @@ function rendreJournal() {
         h(
           'tr',
           {},
-          ['Date', 'Poids (kg)', 'Calories', 'Activité (min)', 'Sport (kcal)', 'Alcool', 'Café', 'Humeur', 'Note'].map((t) => h('th', { scope: 'col' }, t)),
+          ['Date', 'Poids (kg)', 'Calories', 'Activité (min)', 'Sport (kcal)', 'Alcool', 'Café', 'Humeur', 'Stress', 'Note'].map((t) => h('th', { scope: 'col' }, t)),
         ),
       ),
       corps,
