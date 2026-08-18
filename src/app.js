@@ -45,7 +45,7 @@ import {
  * version tourne réellement sur un appareil, et un cache périmé se diagnostique
  * à l'aveugle.
  */
-export const VERSION_APPLI = '2026-08-18 · 8';
+export const VERSION_APPLI = '2026-08-18 · 9';
 
 const $ = (sel, racine = document) => racine.querySelector(sel);
 const $$ = (sel, racine = document) => [...racine.querySelectorAll(sel)];
@@ -1081,14 +1081,17 @@ async function verifierVersion() {
 }
 
 /**
- * Met à jour en protégeant d'abord la saisie : on valide ce qui est en
- * attente, on l'envoie si la sauvegarde en ligne est active, et seulement
- * ensuite on vide les caches et on recharge.
+ * Recharge en protégeant d'abord la saisie : on valide ce qui est en attente,
+ * on l'envoie si la sauvegarde en ligne est active, et seulement ensuite on
+ * vide les caches. C'est l'équivalent d'un Ctrl+Maj+R, mais sans risquer
+ * d'emporter une valeur tapée à l'instant.
  */
-async function appliquerMiseAJour() {
-  const bouton = $('#appliquer-maj');
-  bouton.disabled = true;
-  bouton.textContent = 'Mise à jour…';
+async function appliquerMiseAJour(bouton) {
+  if (bouton) {
+    bouton.disabled = true;
+    bouton.dataset.libelleInitial = bouton.textContent;
+    bouton.textContent = '…';
+  }
   validerSaisieEnAttente();
   if (configSync) {
     clearTimeout(minuteurEnvoi);
@@ -1438,8 +1441,9 @@ function brancher() {
     envoiDiffere();
   });
 
-  $('#forcer-maj').addEventListener('click', appliquerMiseAJour);
-  $('#appliquer-maj').addEventListener('click', appliquerMiseAJour);
+  for (const sel of ['#forcer-maj', '#appliquer-maj', '#rafraichir']) {
+    $(sel).addEventListener('click', (e) => appliquerMiseAJour(e.currentTarget));
+  }
 
   $('#tout-effacer').addEventListener('click', () => {
     const n = Object.keys(etat.entrees).length;

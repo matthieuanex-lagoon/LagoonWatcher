@@ -87,7 +87,12 @@ Ce qui rend la chose sûre à l'usage :
 
 ## Savoir quelle version tourne
 
-L'appli compare sa propre version à celle publiée dans `version.json` — à
+Un bouton **↻** en haut de page recharge l'appli à la demande : il vide le cache
+du navigateur et retélécharge tout, comme un `Ctrl+Maj+R`, mais **sans risquer
+d'emporter une saisie en cours** — il valide d'abord ce qui est en attente et
+l'envoie à la sauvegarde en ligne si elle est active.
+
+L'appli compare aussi sa propre version à celle publiée dans `version.json` — à
 l'ouverture, au retour au premier plan, et toutes les trente minutes tant
 qu'elle est à l'écran. Quand elles diffèrent, **un bandeau apparaît en haut de
 la page** avec un bouton de mise à jour. Rien ne s'affiche s'il n'y a rien de
