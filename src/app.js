@@ -10,10 +10,13 @@ import {
   derniereValeur,
   entreeVide,
   entreeVideOuPas,
+  appliquerSuppressions,
   entreesTriees,
   fusionner,
+  fusionnerSuppressions,
   HUMEURS,
   instantMaj,
+  marquerSupprimee,
   moyenne,
   moyenneGlissante,
   normaliserEntree,
@@ -277,7 +280,15 @@ function majEntree(champs, { silencieux = false, rerendre = true, date = dateCou
   });
   if (!fusion) return;
   if (entreeVideOuPas(fusion)) delete etat.entrees[date];
-  else etat.entrees[date] = fusion;
+  else {
+    etat.entrees[date] = fusion;
+    // Ressaisir une journée effacée annule sa suppression : sans ça, la
+    // prochaine fusion la retirerait de nouveau.
+    if (etat.suppressions?.[date]) {
+      const { [date]: _oubliee, ...reste } = etat.suppressions;
+      etat.suppressions = reste;
+    }
+  }
   persister({ silencieux });
   if (rerendre) rendreJour();
   else rendreIndices();
@@ -787,6 +798,7 @@ async function importerFichier(fichier) {
   const texte = await fichier.text();
   let importees = [];
   let objectifs = null;
+  let suppressionsImportees = null;
   try {
     if (/\.csv$/i.test(fichier.name) || (!texte.trimStart().startsWith('{') && !texte.trimStart().startsWith('['))) {
       importees = depuisCSV(texte);
@@ -794,6 +806,7 @@ async function importerFichier(fichier) {
       const lu = depuisJSON(texte);
       importees = lu.entrees;
       objectifs = lu.objectifs;
+      suppressionsImportees = lu.suppressions;
     }
   } catch (err) {
     toast(`Fichier illisible : ${err.message}`);
@@ -810,7 +823,8 @@ async function importerFichier(fichier) {
   if (!confirm(message)) return;
 
   const res = fusionner(etat.entrees, importees, { strategie: 'remplacer' });
-  etat.entrees = res.entrees;
+  if (suppressionsImportees) etat.suppressions = fusionnerSuppressions(etat.suppressions ?? {}, suppressionsImportees);
+  etat.entrees = appliquerSuppressions(res.entrees, etat.suppressions ?? {});
   if (objectifs) etat.objectifs = { ...OBJECTIFS_DEFAUT, ...objectifs };
   persister({ silencieux: true });
   rendreJour();
@@ -916,8 +930,9 @@ async function recupererMaintenant({ discret = false } = {}) {
     }
     const lu = depuisJSON(contenu);
     const res = fusionner(etat.entrees, lu.entrees, { strategie: 'recente' });
+    etat.suppressions = fusionnerSuppressions(etat.suppressions ?? {}, lu.suppressions);
     const change = res.ajoutees + res.misesAJour;
-    etat.entrees = res.entrees;
+    etat.entrees = appliquerSuppressions(res.entrees, etat.suppressions);
     if (lu.objectifs) etat.objectifs = { ...OBJECTIFS_DEFAUT, ...lu.objectifs };
     persister({ silencieux: true });
     rendreJour();
@@ -1057,8 +1072,12 @@ function brancher() {
     if (!etat.entrees[dateCourante]) return;
     if (!confirm(`Effacer les données du ${formatDay(dateCourante, { relative: false })} ?`)) return;
     delete etat.entrees[dateCourante];
+    // Sans trace datée, l'appareil d'en face renverrait la journée au prochain
+    // échange et elle réapparaîtrait ici.
+    etat.suppressions = marquerSupprimee(etat.suppressions ?? {}, dateCourante);
     persister({ silencieux: true });
     rendreJour();
+    envoiDiffere();
     toast('Journée effacée.');
   });
 
@@ -1127,6 +1146,7 @@ function brancher() {
     if (!n) return toast('Il n\'y a rien à effacer.');
     if (!confirm(`Supprimer définitivement ${n} journée(s) ? Cette action est irréversible.`)) return;
     etat.entrees = {};
+    etat.suppressions = {};
     persister({ silencieux: true });
     rendreJour();
     rendreReglages();

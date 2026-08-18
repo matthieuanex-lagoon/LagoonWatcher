@@ -2,13 +2,13 @@
 // pas de serveur, pas de données de santé qui partent ailleurs. La sauvegarde
 // se fait par export JSON depuis les réglages.
 
-import { entreeVideOuPas, normaliserEntree, OBJECTIFS_DEFAUT } from './model.js';
+import { elaguerSuppressions, entreeVideOuPas, normaliserEntree, OBJECTIFS_DEFAUT } from './model.js';
 
 const CLE = 'lagoonwatcher.v1';
 const VERSION = 1;
 
 function etatVide() {
-  return { version: VERSION, entrees: {}, objectifs: { ...OBJECTIFS_DEFAUT }, theme: 'auto' };
+  return { version: VERSION, entrees: {}, suppressions: {}, objectifs: { ...OBJECTIFS_DEFAUT }, theme: 'auto' };
 }
 
 export function charger() {
@@ -19,6 +19,7 @@ export function charger() {
     return {
       version: VERSION,
       entrees: nettoyerEntrees(donnees.entrees),
+      suppressions: elaguerSuppressions(nettoyerSuppressions(donnees.suppressions)),
       objectifs: { ...OBJECTIFS_DEFAUT, ...(donnees.objectifs ?? {}) },
       theme: ['auto', 'clair', 'sombre'].includes(donnees.theme) ? donnees.theme : 'auto',
     };
@@ -39,6 +40,17 @@ function nettoyerEntrees(brut) {
   return out;
 }
 
+/** Ne garde que des couples date → horodatage exploitables. */
+function nettoyerSuppressions(brut) {
+  const out = {};
+  for (const [date, quand] of Object.entries(brut ?? {})) {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date) && typeof quand === 'string' && !Number.isNaN(Date.parse(quand))) {
+      out[date] = quand;
+    }
+  }
+  return out;
+}
+
 export function sauver(etat) {
   try {
     localStorage.setItem(
@@ -46,6 +58,7 @@ export function sauver(etat) {
       JSON.stringify({
         version: VERSION,
         entrees: etat.entrees,
+        suppressions: etat.suppressions ?? {},
         objectifs: etat.objectifs,
         theme: etat.theme,
       }),
@@ -66,6 +79,7 @@ export function versJSON(etat) {
       version: VERSION,
       exporteLe: new Date().toISOString(),
       objectifs: etat.objectifs,
+      suppressions: etat.suppressions ?? {},
       entrees: Object.values(etat.entrees).sort((a, b) => a.date.localeCompare(b.date)),
     },
     null,
@@ -80,6 +94,7 @@ export function depuisJSON(texte) {
   if (!liste) throw new Error("Aucune entrée trouvée dans ce fichier.");
   return {
     entrees: Array.isArray(liste) ? liste : Object.values(liste),
+    suppressions: donnees.suppressions ?? {},
     objectifs: donnees.objectifs ?? null,
   };
 }

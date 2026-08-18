@@ -76,6 +76,7 @@ Ce qui rend la chose sûre à l'usage :
 - **Activer la sauvegarde sur un appareil déjà rempli récupère avant d'envoyer**, pour ne pas écraser l'historique venu d'ailleurs.
 - **La clé vit dans le stockage local, sous une clé distincte des données** : un export JSON ou CSV ne l'emporte jamais avec lui. Elle n'autorise que l'accès aux gists — ni au code, ni au reste du compte.
 - **Une coupure réseau ne perd rien** : les données restent sur l'appareil et le prochain envoi rattrape.
+- **Effacer une journée se propage.** La suppression laisse une trace datée, si bien que l'appareil d'en face ne la renvoie pas au prochain échange. Ressaisir la journée plus tard annule la trace : c'est toujours la dernière action qui gagne. Ces traces sont oubliées au bout d'un an.
 - **Une récupération n'écrase jamais une saisie en cours** : tant que le curseur est dans un champ, la récupération automatique repasse plus tard ; et une modification encore dans son délai d'attente est validée avant la fusion, pour qu'elle porte son horodatage et gagne l'arbitrage.
 
 À savoir : un gist privé n'est pas chiffré. Il est invisible pour les autres, mais lisible par GitHub. Pour de la donnée de santé que l'on préfère illisible côté serveur, il faudrait ajouter un chiffrement par mot de passe avant l'envoi.
@@ -104,7 +105,7 @@ src/charts.js              graphiques SVG (ligne, colonnes, points) + survol
 src/app.js                 câblage de l'interface
 sw.js, manifest.webmanifest  installation et fonctionnement hors ligne
 scripts/build-solo.mjs     assemblage de la version en un seul fichier
-tests/model.test.js        27 tests sur le modèle
+tests/model.test.js        32 tests sur le modèle
 ```
 
 Les calculs sont séparés de l'affichage : `model.js` et `dates.js` ne touchent ni au DOM ni au stockage, ce qui rend les tests directs (`node --test`). Les graphiques sont dessinés à la main en SVG — une seule série par graphique, palette validée en clair comme en sombre, étiquetage sélectif, et le Journal sert de vue tableau équivalente.

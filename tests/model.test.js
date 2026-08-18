@@ -3,14 +3,18 @@ import { test } from 'node:test';
 
 import { addDays, daySpan, formatAxisDay, lastNDays, startOfWeek, toISO } from '../src/dates.js';
 import {
+  appliquerSuppressions,
   bilan,
   correlation,
   depuisCSV,
   derniereValeur,
   entreeVide,
   entreeVideOuPas,
+  elaguerSuppressions,
   fusionner,
+  fusionnerSuppressions,
   instantMaj,
+  marquerSupprimee,
   moyenne,
   moyenneGlissante,
   normaliserEntree,
@@ -307,4 +311,45 @@ test('fusionner : mode conservateur', () => {
   const res = fusionner(existantes, [{ date: '2026-08-17', calories: 2500 }], { strategie: 'conserver' });
   assert.equal(res.entrees['2026-08-17'].calories, 2000);
   assert.equal(res.ignorees, 1);
+});
+
+
+test('suppression : une journée effacée est retirée après fusion', () => {
+  const entrees = jeu({ '2026-08-17': { cafe: 3, maj: '2026-08-17T10:00:00.000Z' } });
+  const suppressions = marquerSupprimee({}, '2026-08-17', '2026-08-17T11:00:00.000Z');
+  assert.deepEqual(appliquerSuppressions(entrees, suppressions), {});
+});
+
+test('suppression : une journée ressaisie après coup survit', () => {
+  // La modification est postérieure à la suppression : elle doit l'emporter.
+  const entrees = jeu({ '2026-08-17': { cafe: 3, maj: '2026-08-17T12:00:00.000Z' } });
+  const suppressions = { '2026-08-17': '2026-08-17T11:00:00.000Z' };
+  assert.equal(appliquerSuppressions(entrees, suppressions)['2026-08-17'].cafe, 3);
+});
+
+test('suppression : le scénario à deux appareils', () => {
+  // A efface la journée ; B l'a encore et la renvoie. Sans trace datée, elle
+  // reviendrait — c'est exactement le bug que ceci corrige.
+  const surB = [{ date: '2026-08-17', cafe: 3, maj: '2026-08-17T10:00:00.000Z' }];
+  const suppressionsDeA = marquerSupprimee({}, '2026-08-17', '2026-08-17T11:00:00.000Z');
+  const res = fusionner({}, surB, { strategie: 'recente' });
+  assert.equal(Boolean(res.entrees['2026-08-17']), true, 'la fusion la fait bien revenir');
+  assert.deepEqual(appliquerSuppressions(res.entrees, suppressionsDeA), {}, 'la trace datée la retire');
+});
+
+test('suppressions : réunion de deux registres, la plus récente gagne', () => {
+  const a = { '2026-08-17': '2026-08-17T10:00:00.000Z', '2026-08-16': '2026-08-16T10:00:00.000Z' };
+  const b = { '2026-08-17': '2026-08-17T18:00:00.000Z', '2026-08-15': '2026-08-15T10:00:00.000Z' };
+  const f = fusionnerSuppressions(a, b);
+  assert.equal(f['2026-08-17'], '2026-08-17T18:00:00.000Z');
+  assert.equal(f['2026-08-16'], '2026-08-16T10:00:00.000Z');
+  assert.equal(f['2026-08-15'], '2026-08-15T10:00:00.000Z');
+});
+
+test('suppressions : les traces trop vieilles sont élaguées', () => {
+  const vieille = new Date(Date.now() - 400 * 86400000).toISOString();
+  const recente = new Date(Date.now() - 10 * 86400000).toISOString();
+  const out = elaguerSuppressions({ '2025-01-01': vieille, '2026-08-08': recente });
+  assert.equal(out['2025-01-01'], undefined);
+  assert.equal(out['2026-08-08'], recente);
 });

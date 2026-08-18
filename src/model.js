@@ -307,6 +307,48 @@ export function correlation(entrees, jours, metriqueA, metriqueB, minPaires = 8)
   return { r: num / Math.sqrt(dx * dy), n: paires.length };
 }
 
+/**
+ * Effacer une journée doit voyager comme une modification, sinon l'appareil
+ * d'en face la réenverrait au prochain échange et elle réapparaîtrait. On garde
+ * donc une trace datée de la suppression — une « pierre tombale » — que la
+ * fusion peut arbitrer comme le reste : c'est la plus récente qui gagne.
+ */
+export function marquerSupprimee(suppressions, date, quand = new Date().toISOString()) {
+  return { ...suppressions, [date]: quand };
+}
+
+/** Réunit deux registres de suppressions en gardant la date la plus récente. */
+export function fusionnerSuppressions(a = {}, b = {}) {
+  const out = { ...a };
+  for (const [date, quand] of Object.entries(b)) {
+    if (!out[date] || Date.parse(quand) > Date.parse(out[date])) out[date] = quand;
+  }
+  return out;
+}
+
+/**
+ * Retire les journées dont la suppression est postérieure à leur dernière
+ * modification. Une journée ressaisie après coup est donc bien conservée : sa
+ * modification est alors plus récente que la suppression.
+ */
+export function appliquerSuppressions(entrees, suppressions = {}) {
+  const out = {};
+  for (const [date, entree] of Object.entries(entrees)) {
+    const efface = suppressions[date];
+    if (efface && Date.parse(efface) >= instantMaj(entree)) continue;
+    out[date] = entree;
+  }
+  return out;
+}
+
+/** Une pierre tombale ne sert plus une fois la journée oubliée partout. */
+export function elaguerSuppressions(suppressions = {}, maxJours = 365) {
+  const limite = Date.now() - maxJours * 86400000;
+  return Object.fromEntries(
+    Object.entries(suppressions).filter(([, quand]) => Date.parse(quand) >= limite),
+  );
+}
+
 /** CSV (séparateur `;`, lisible tel quel par Excel en locale FR). */
 export function versCSV(entrees) {
   const colonnes = ['date', 'poids_kg', 'calories_kcal', 'activite_min', 'type_activite', 'alcool_verres', 'cafe_tasses', 'humeur_1_5', 'modifie_le', 'note'];
