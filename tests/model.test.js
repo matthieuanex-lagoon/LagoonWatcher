@@ -11,6 +11,7 @@ import {
   entreeVide,
   entreeVideOuPas,
   elaguerSuppressions,
+  estimerCalories,
   fusionner,
   fusionnerSuppressions,
   instantMaj,
@@ -27,11 +28,16 @@ import {
   versCSV,
 } from '../src/model.js';
 
-/** Construit un jeu d'entrées depuis un objet compact { date: {champs} }. */
+/**
+ * Construit un jeu d'entrées depuis un objet compact { date: {champs} }.
+ * On ne part pas d'`entreeVide` : elle porte `activites: []`, et une liste
+ * présente l'emporte sur les anciens champs `activite`/`typeActivite`. Passer
+ * les deux fabriquerait un objet que l'appli ne produit jamais.
+ */
 function jeu(brut) {
   const out = {};
   for (const [date, champs] of Object.entries(brut)) {
-    out[date] = normaliserEntree({ ...entreeVide(date), ...champs });
+    out[date] = normaliserEntree({ date, ...champs });
   }
   return out;
 }
@@ -352,4 +358,56 @@ test('suppressions : les traces trop vieilles sont élaguées', () => {
   const out = elaguerSuppressions({ '2025-01-01': vieille, '2026-08-08': recente });
   assert.equal(out['2025-01-01'], undefined);
   assert.equal(out['2026-08-08'], recente);
+});
+
+
+test('activités : une liste présente l\'emporte sur les anciens champs', () => {
+  // Vider la liste doit effacer la journée sportive, pas ressusciter l'ancien
+  // total : c'est ce qui se passe quand on retire la dernière ligne.
+  const vide = normaliserEntree({ date: '2026-08-18', activite: 30, typeActivite: 'Vélo', activites: [] });
+  assert.equal(vide.activite, null);
+  assert.deepEqual(vide.activites, []);
+
+  // Sans liste du tout, l'ancien format est migré.
+  const ancien = normaliserEntree({ date: '2026-08-18', activite: 30, typeActivite: 'Vélo' });
+  assert.equal(ancien.activite, 30);
+  assert.deepEqual(ancien.activites, [{ type: 'Vélo', minutes: 30, calories: null, estimee: false }]);
+});
+
+test('activités : les totaux sont dérivés de la liste', () => {
+  const e = normaliserEntree({
+    date: '2026-08-18',
+    activites: [
+      { type: 'Vélo', minutes: 30, calories: 250, estimee: true },
+      { type: 'Muscu', minutes: 45, calories: 300 },
+      { type: '', minutes: '', calories: '' }, // ligne à moitié remplie : écartée
+    ],
+  });
+  assert.equal(e.activites.length, 2);
+  assert.equal(e.activite, 75);
+  assert.equal(e.sportKcal, 550);
+  assert.equal(e.typeActivite, 'Vélo + Muscu');
+});
+
+test('estimerCalories : proportionnelle à la durée, muette sans poids', () => {
+  assert.equal(estimerCalories('Vélo', 60, 78), Math.round(7.5 * 78));
+  assert.equal(estimerCalories('Vélo', 30, 78), Math.round(7.5 * 78 * 0.5));
+  assert.equal(estimerCalories('Marche', 60, 78), Math.round(3.5 * 78));
+  // Type inconnu : intensité moyenne plutôt qu'un refus.
+  assert.equal(estimerCalories('Trampoline', 60, 78), Math.round(5 * 78));
+  // Sans poids ni durée, on n'invente rien.
+  assert.equal(estimerCalories('Vélo', 60, null), null);
+  assert.equal(estimerCalories('Vélo', 0, 78), null);
+});
+
+test('bilan : dépense sportive agrégée', () => {
+  const entrees = jeu({
+    '2026-08-16': { activites: [{ type: 'Vélo', minutes: 30, calories: 250 }] },
+    '2026-08-17': { activites: [{ type: 'Course', minutes: 40, calories: 400 }, { type: 'Yoga', minutes: 20, calories: 60 }] },
+  });
+  const b = bilan(entrees, lastNDays(7, '2026-08-17'));
+  assert.equal(b.activite.kcalTotal, 710);
+  assert.equal(b.activite.seances, 3);
+  assert.equal(b.activite.joursAvecKcal, 2);
+  assert.equal(b.activite.total, 90);
 });

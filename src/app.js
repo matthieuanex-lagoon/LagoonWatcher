@@ -12,6 +12,7 @@ import {
   entreeVideOuPas,
   appliquerSuppressions,
   entreesTriees,
+  estimerCalories,
   fusionner,
   fusionnerSuppressions,
   HUMEURS,
@@ -43,7 +44,7 @@ import {
  * version tourne réellement sur un appareil, et un cache périmé se diagnostique
  * à l'aveugle.
  */
-export const VERSION_APPLI = '2026-08-18 · 5';
+export const VERSION_APPLI = '2026-08-18 · 6';
 
 const $ = (sel, racine = document) => racine.querySelector(sel);
 const $$ = (sel, racine = document) => [...racine.querySelectorAll(sel)];
@@ -168,10 +169,6 @@ function allerAuJour(nouvelleDate) {
 }
 
 function construireChampsStatiques() {
-  const select = $('#champ-type-activite');
-  select.append(h('option', { value: '' }, 'type…'));
-  for (const t of TYPES_ACTIVITE) select.append(h('option', { value: t }, t));
-
   const zone = $('#choix-humeur');
   for (const m of HUMEURS) {
     zone.append(
@@ -195,6 +192,144 @@ function construireChampsStatiques() {
   }
 }
 
+/**
+ * Poids le plus récent connu à cette date : base de l'estimation calorique.
+ * On regarde en arrière plutôt qu'en avant — le poids d'après-demain ne dit
+ * rien de l'effort d'aujourd'hui.
+ */
+function poidsPour(date) {
+  const candidats = entreesTriees(etat.entrees).filter((e) => e.date <= date && typeof e.poids === 'number');
+  return candidats.at(-1)?.poids ?? derniereValeur(etat.entrees, 'poids')?.valeur ?? null;
+}
+
+/**
+ * « Journée sans sport » : une séance unique de zéro minute, sans type. C'est
+ * une information — elle compte comme journée renseignée — là où une journée
+ * sans aucune séance ne dit rien.
+ */
+function estJourneeSansSport(entree) {
+  const seances = entree.activites ?? [];
+  return seances.length === 1 && seances[0].minutes === 0 && !seances[0].type && seances[0].calories === null;
+}
+
+/** Séances telles qu'affichées, y compris les lignes en cours de saisie. */
+function lireSeances() {
+  return $$('#liste-activites .seance').map((ligne) => ({
+    type: $('select', ligne).value,
+    minutes: $('.minutes', ligne).value,
+    calories: $('.kcal input', ligne).value,
+    estimee: $('.kcal', ligne).dataset.estimee === 'true',
+  }));
+}
+
+/**
+ * Recalcule l'estimation d'une ligne. Une valeur saisie à la main n'est
+ * jamais écrasée : c'est la promesse faite à l'utilisateur, sinon corriger
+ * un chiffre ne servirait à rien.
+ */
+function rafraichirEstimation(ligne) {
+  const champKcal = $('.kcal', ligne);
+  const saisieManuelle = champKcal.dataset.estimee !== 'true' && $('input', champKcal).value !== '';
+  if (saisieManuelle) return;
+  const minutes = Number($('.minutes', ligne).value);
+  const estimation = estimerCalories($('select', ligne).value, minutes, poidsPour(dateCourante));
+  $('input', champKcal).value = estimation ?? '';
+  champKcal.dataset.estimee = estimation === null ? 'false' : 'true';
+  $('.marque-estimee', champKcal).hidden = estimation === null;
+}
+
+function ligneSeance(seance = { type: '', minutes: '', calories: '', estimee: false }) {
+  const select = h(
+    'select',
+    { 'aria-label': "Type d'activité" },
+    h('option', { value: '' }, 'type…'),
+    TYPES_ACTIVITE.map((t) => h('option', { value: t.nom, selected: t.nom === seance.type }, t.nom)),
+  );
+  const minutes = h('input', {
+    type: 'number', class: 'minutes', step: 5, min: 0, max: 1440, inputmode: 'numeric',
+    placeholder: 'min', 'aria-label': 'Durée en minutes', value: seance.minutes ?? '',
+  });
+  const kcalInput = h('input', {
+    type: 'number', step: 10, min: 0, max: 20000, inputmode: 'numeric',
+    placeholder: 'kcal', 'aria-label': 'Calories dépensées', value: seance.calories ?? '',
+  });
+  const kcal = h(
+    'div',
+    { class: 'kcal', dataset: { estimee: String(Boolean(seance.estimee)) } },
+    kcalInput,
+    h('span', { class: 'marque-estimee', title: "Estimation d'après le type, la durée et votre poids", hidden: !seance.estimee }, '≈'),
+  );
+  const ligne = h(
+    'div',
+    { class: 'seance' },
+    select,
+    minutes,
+    kcal,
+    h('button', { type: 'button', class: 'retirer', 'aria-label': 'Retirer cette activité', title: 'Retirer' }, '×'),
+  );
+
+  const recalculer = () => {
+    rafraichirEstimation(ligne);
+    enregistrerSeances();
+  };
+  select.addEventListener('change', recalculer);
+  minutes.addEventListener('change', recalculer);
+  minutes.addEventListener('input', () => enregistrementDiffere());
+  // Toucher au chiffre, c'est le reprendre à son compte : plus d'estimation.
+  kcalInput.addEventListener('input', () => {
+    kcal.dataset.estimee = 'false';
+    $('.marque-estimee', kcal).hidden = true;
+    enregistrementDiffere();
+  });
+  kcalInput.addEventListener('change', enregistrerSeances);
+  $('.retirer', ligne).addEventListener('click', () => {
+    ligne.remove();
+    enregistrerSeances();
+    rendreEtatSeances();
+  });
+  return ligne;
+}
+
+function enregistrerSeances() {
+  clearTimeout(minuteurAuto);
+  majEntree({ ...lireFormulaire(), activites: lireSeances() }, { rerendre: false });
+  rendreEtatSeances();
+}
+
+function rendreEtatSeances() {
+  const vide = $$('#liste-activites .seance').length === 0;
+  $('#entete-seances').hidden = vide;
+  $('#aucune-seance').hidden = !vide;
+  $('#activite-repos').setAttribute('aria-pressed', String(estJourneeSansSport(entreeCourante())));
+
+  // L'estimation a besoin du poids. Sans lui, le champ reste vide : autant
+  // dire pourquoi, sinon la fonction passe pour cassée.
+  const attendUnPoids =
+    poidsPour(dateCourante) === null &&
+    $$('#liste-activites .seance').some(
+      (ligne) => Number($('.minutes', ligne).value) > 0 && $('.kcal input', ligne).value === '',
+    );
+  $('#sans-poids').hidden = !attendUnPoids;
+}
+
+function rendreSeances() {
+  const zone = $('#liste-activites');
+  zone.textContent = '';
+  zone.append(
+    h(
+      'div',
+      { class: 'entete-seances', id: 'entete-seances' },
+      h('span', {}, 'Activité'),
+      h('span', {}, 'Min'),
+      h('span', {}, 'Kcal'),
+      h('span', {}, ''),
+    ),
+    h('p', { class: 'aucune-seance', id: 'aucune-seance' }, 'Aucune activité pour cette journée.'),
+  );
+  for (const seance of entreeCourante().activites ?? []) zone.append(ligneSeance(seance));
+  rendreEtatSeances();
+}
+
 function rendreJour() {
   const e = entreeCourante();
   $('#libelle-jour').textContent = formatDay(dateCourante);
@@ -204,26 +339,29 @@ function rendreJour() {
 
   $('#champ-poids').value = e.poids ?? '';
   $('#champ-calories').value = e.calories ?? '';
-  $('#champ-activite').value = e.activite ?? '';
-  $('#champ-type-activite').value = e.typeActivite ?? '';
   $('#champ-alcool').value = e.alcool ?? '';
   $('#champ-cafe').value = e.cafe ?? '';
   $('#champ-note').value = e.note ?? '';
 
   $$('#choix-humeur button').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.humeur) === e.humeur)));
-  $$('#ajouts-activite .puce').forEach((b) => b.setAttribute('aria-pressed', String(e.activite !== null && Number(b.dataset.valeur) === e.activite)));
   $('#alcool-zero').setAttribute('aria-pressed', String(e.alcool === 0));
+  rendreSeances();
   $('#cafe-zero').setAttribute('aria-pressed', String(e.cafe === 0));
-  $('#effacer-jour').disabled = !etat.entrees[dateCourante];
   $('#etat-sauvegarde').textContent = etat.entrees[dateCourante] ? 'Journée enregistrée' : '';
   $('#etat-sauvegarde').dataset.etat = '';
 
   rendreIndices();
 }
 
-/** Contexte à droite de chaque intitulé : où on en est, sans changer de vue. */
+/**
+ * Contexte à droite de chaque intitulé : où on en est, sans changer de vue.
+ * Appelé aussi après un enregistrement sans rendu complet, d'où l'état du
+ * bouton d'effacement ici — sinon il resterait grisé sur une journée qu'on
+ * vient de remplir.
+ */
 function rendreIndices() {
   const { entrees, objectifs } = etat;
+  $('#effacer-jour').disabled = !entrees[dateCourante];
   const semaine = joursDepuis(startOfWeek(dateCourante), dateCourante);
   const sept = joursDepuis(addDays(dateCourante, -6), dateCourante);
 
@@ -233,7 +371,7 @@ function rendreIndices() {
   $('#indice-poids').textContent = dernier
     ? dernier.date === dateCourante
       ? `${nb(dernier.valeur, 1)} kg${tendanceTexte}`
-      : `dernière pesée ${nb(dernier.valeur, 1)} kg le ${formatDay(dernier.date)}${tendanceTexte}`
+      : `dernière pesée ${nb(dernier.valeur, 1)} kg · ${formatDay(dernier.date)}${tendanceTexte}`
     : 'première pesée';
 
   const moyCal = moyenne(sept.map((d) => entrees[d]?.calories ?? null));
@@ -244,9 +382,13 @@ function rendreIndices() {
       : '';
 
   const totalSemaine = somme(semaine.map((d) => entrees[d]?.activite ?? null));
-  $('#indice-activite').textContent = `cette semaine ${duree(totalSemaine)}${
-    objectifs.activite ? ` / ${duree(objectifs.activite)}` : ''
-  }`;
+  const kcalSemaine = somme(semaine.map((d) => entrees[d]?.sportKcal ?? null));
+  $('#indice-activite').textContent = [
+    `cette semaine ${duree(totalSemaine)}${objectifs.activite ? ` / ${duree(objectifs.activite)}` : ''}`,
+    kcalSemaine ? `${nb(kcalSemaine)} kcal` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   const verresSemaine = somme(semaine.map((d) => entrees[d]?.alcool ?? null));
   const secs = serieEnCours(entrees, dateCourante, (x) => x.alcool === 0);
@@ -307,8 +449,7 @@ function lireFormulaire() {
   return {
     poids: $('#champ-poids').value,
     calories: $('#champ-calories').value,
-    activite: $('#champ-activite').value,
-    typeActivite: $('#champ-type-activite').value,
+    activites: lireSeances(),
     alcool: $('#champ-alcool').value,
     cafe: $('#champ-cafe').value,
     note: $('#champ-note').value,
@@ -381,7 +522,7 @@ function tuile({ etiquette, teinte, valeur, unite, detail, jauge, sparkline }) {
   return n;
 }
 
-function carteGraphique({ titre, teinte, resume, config }) {
+function carteGraphique({ titre, teinte, resume, config, legende, note }) {
   const zone = h('div', { class: 'zone-graphique' });
   const carte = h(
     'section',
@@ -389,11 +530,21 @@ function carteGraphique({ titre, teinte, resume, config }) {
     h(
       'div',
       { class: 'en-tete-graphique' },
-      h('i', { class: 'repere-serie' }),
+      legende ? null : h('i', { class: 'repere-serie' }),
       h('h3', {}, titre),
       resume ? h('span', { class: 'resume' }, resume) : null,
     ),
+    // Deux séries : la légende n'est pas décorative, c'est le seul canal
+    // d'identité qui ne repose pas uniquement sur la couleur.
+    legende
+      ? h(
+          'div',
+          { class: 'legende' },
+          legende.map((l) => h('span', {}, h('i', { style: `background: ${l.couleur}` }), l.nom)),
+        )
+      : null,
     zone,
+    note ? h('p', { class: 'discret', style: 'margin: 8px 0 0' }, note) : null,
   );
   // Le dessin attend d'être dans le document pour connaître sa largeur.
   requestAnimationFrame(() => dessinerGraphique(zone, { ...config, titre, couleur: `var(--serie-${teinte})` }));
@@ -498,7 +649,9 @@ function rendreBilan() {
         etiquette: 'Activité / semaine',
         teinte: 'activite',
         valeur: duree(b.activite.parSemaine),
-        detail: `${b.activite.joursActifs} jours actifs · ${duree(b.activite.total)} au total`,
+        detail: b.activite.kcalTotal
+          ? `${b.activite.seances} séances · ${nb(b.activite.kcalTotal)} kcal dépensées`
+          : `${b.activite.joursActifs} jours actifs · ${duree(b.activite.total)} au total`,
         jauge: b.activite.objectifSemaine
           ? { part: b.activite.parSemaine / b.activite.objectifSemaine, depasse: false }
           : null,
@@ -556,18 +709,39 @@ function rendreBilan() {
         objectif: objectifs.poids ? { valeur: objectifs.poids, label: `objectif ${nb(objectifs.poids, 1)} kg` } : null,
       },
     }),
-    carteGraphique({
-      titre: 'Calories',
-      teinte: 'calories',
-      resume: b.calories.jours ? `moy. ${nb(b.calories.moyenne)} kcal` : null,
-      config: {
-        type: 'colonnes',
-        points: serie(entrees, 'calories', jours),
-        unite: 'kcal',
-        format: (v) => nb(v),
-        objectif: objectifs.calories ? { valeur: objectifs.calories, label: `objectif ${nb(objectifs.calories)}` } : null,
-      },
-    }),
+    b.activite.kcalTotal
+      ? carteGraphique({
+          titre: 'Calories absorbées et dépensées',
+          teinte: 'calories',
+          resume: `moy. ${nb(b.calories.moyenne)} absorbées`,
+          note: 'Le sport n\'est qu\'une part de la dépense : le corps en brûle bien plus au repos.',
+          legende: [
+            { nom: 'Absorbées', couleur: 'var(--serie-calories)' },
+            { nom: 'Dépensées en sport', couleur: 'var(--serie-activite)' },
+          ],
+          config: {
+            type: 'colonnes-groupees',
+            series: [
+              { nom: 'Absorbées', couleur: 'var(--serie-calories)', points: serie(entrees, 'calories', jours) },
+              { nom: 'Dépensées en sport', couleur: 'var(--serie-activite)', points: serie(entrees, 'sportKcal', jours) },
+            ],
+            unite: 'kcal',
+            format: (v) => nb(v),
+            objectif: objectifs.calories ? { valeur: objectifs.calories, label: `objectif ${nb(objectifs.calories)}` } : null,
+          },
+        })
+      : carteGraphique({
+          titre: 'Calories',
+          teinte: 'calories',
+          resume: b.calories.jours ? `moy. ${nb(b.calories.moyenne)} kcal` : null,
+          config: {
+            type: 'colonnes',
+            points: serie(entrees, 'calories', jours),
+            unite: 'kcal',
+            format: (v) => nb(v),
+            objectif: objectifs.calories ? { valeur: objectifs.calories, label: `objectif ${nb(objectifs.calories)}` } : null,
+          },
+        }),
     carteGraphique({
       titre: 'Activité',
       teinte: 'activite',
@@ -703,6 +877,7 @@ function rendreJournal() {
         cellule(e.poids !== null ? nb(e.poids, 1) : null),
         cellule(e.calories !== null ? nb(e.calories) : null),
         cellule(e.activite !== null ? `${nb(e.activite)}${e.typeActivite ? ` · ${e.typeActivite}` : ''}` : null),
+        cellule(e.sportKcal !== null ? nb(e.sportKcal) : null),
         cellule(e.alcool !== null ? nb(e.alcool) : null),
         cellule(e.cafe !== null ? nb(e.cafe) : null),
         cellule(e.humeur !== null ? `${HUMEURS[e.humeur - 1].emoji} ${e.humeur}` : null),
@@ -721,7 +896,7 @@ function rendreJournal() {
         h(
           'tr',
           {},
-          ['Date', 'Poids (kg)', 'Calories', 'Activité (min)', 'Alcool', 'Café', 'Humeur', 'Note'].map((t) => h('th', { scope: 'col' }, t)),
+          ['Date', 'Poids (kg)', 'Calories', 'Activité (min)', 'Sport (kcal)', 'Alcool', 'Café', 'Humeur', 'Note'].map((t) => h('th', { scope: 'col' }, t)),
         ),
       ),
       corps,
@@ -1032,14 +1207,13 @@ function brancher() {
 
   // Champs du formulaire : enregistrement différé pendant la frappe,
   // immédiat quand on quitte le champ.
-  for (const sel of ['#champ-poids', '#champ-calories', '#champ-activite', '#champ-alcool', '#champ-cafe', '#champ-note']) {
+  for (const sel of ['#champ-poids', '#champ-calories', '#champ-alcool', '#champ-cafe', '#champ-note']) {
     $(sel).addEventListener('input', enregistrementDiffere);
     $(sel).addEventListener('change', () => {
       clearTimeout(minuteurAuto);
       majEntree(lireFormulaire());
     });
   }
-  $('#champ-type-activite').addEventListener('change', () => majEntree(lireFormulaire()));
 
   $('#formulaire-jour').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -1064,12 +1238,19 @@ function brancher() {
   $$('#ajouts-calories .puce').forEach((b) =>
     b.addEventListener('click', () => appliquer({ calories: (valeurAffichee('#champ-calories') ?? 0) + Number(b.dataset.ajout) })),
   );
-  $$('#ajouts-activite .puce').forEach((b) =>
-    b.addEventListener('click', () => {
-      const valeur = Number(b.dataset.valeur);
-      appliquer({ activite: valeurAffichee('#champ-activite') === valeur ? null : valeur });
-    }),
-  );
+  $('#ajouter-activite').addEventListener('click', () => {
+    const ligne = ligneSeance();
+    $('#liste-activites').append(ligne);
+    rendreEtatSeances();
+    $('select', ligne).focus();
+  });
+  // « Journée sans sport » : zéro minute, ce qui n'est pas la même chose
+  // qu'une journée non renseignée — la distinction compte dans les séries.
+  $('#activite-repos').addEventListener('click', () => {
+    const dejaRepos = estJourneeSansSport(entreeCourante());
+    clearTimeout(minuteurAuto);
+    majEntree({ ...lireFormulaire(), activites: dejaRepos ? [] : [{ type: '', minutes: 0, calories: null }] });
+  });
   $('#alcool-moins').addEventListener('click', () => appliquer({ alcool: Math.max(0, (valeurAffichee('#champ-alcool') ?? 0) - 1) }));
   $('#alcool-plus').addEventListener('click', () => appliquer({ alcool: Math.min(60, (valeurAffichee('#champ-alcool') ?? 0) + 1) }));
   $('#alcool-zero').addEventListener('click', () => appliquer({ alcool: valeurAffichee('#champ-alcool') === 0 ? null : 0 }));

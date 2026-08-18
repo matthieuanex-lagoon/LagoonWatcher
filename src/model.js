@@ -6,16 +6,34 @@ import { addDays, daySpan, daysBetween, startOfWeek, todayISO } from './dates.js
 /** Les six métriques suivies, dans l'ordre d'affichage. */
 export const METRIQUES = ['poids', 'calories', 'activite', 'alcool', 'cafe', 'humeur'];
 
+/**
+ * Types d'activité et leur intensité (MET, « Compendium of Physical
+ * Activities »), qui sert à estimer les calories. Ce sont des valeurs
+ * moyennes : une estimation reste une estimation, et l'appli la présente
+ * comme telle.
+ */
 export const TYPES_ACTIVITE = [
-  'Marche',
-  'Course',
-  'Vélo',
-  'Natation',
-  'Muscu',
-  'Yoga',
-  'Sport collectif',
-  'Autre',
+  { nom: 'Marche', met: 3.5 },
+  { nom: 'Course', met: 9 },
+  { nom: 'Vélo', met: 7.5 },
+  { nom: 'Natation', met: 7 },
+  { nom: 'Muscu', met: 5 },
+  { nom: 'Yoga', met: 3 },
+  { nom: 'Sport collectif', met: 7 },
+  { nom: 'Autre', met: 5 },
 ];
+
+const MET_DEFAUT = 5;
+
+/**
+ * Estimation des calories d'une séance : MET × poids × durée. Sans poids
+ * connu, on ne devine pas — mieux vaut un champ vide qu'un chiffre inventé.
+ */
+export function estimerCalories(type, minutes, poids) {
+  if (!(minutes > 0) || !(poids > 0)) return null;
+  const met = TYPES_ACTIVITE.find((t) => t.nom === type)?.met ?? MET_DEFAUT;
+  return Math.round(met * poids * (minutes / 60));
+}
 
 export const HUMEURS = [
   { valeur: 1, emoji: '😞', label: 'Très bas' },
@@ -39,8 +57,10 @@ export function entreeVide(date) {
     date,
     poids: null,
     calories: null,
+    activites: [],
     activite: null,
     typeActivite: '',
+    sportKcal: null,
     alcool: null,
     cafe: null,
     humeur: null,
@@ -70,8 +90,7 @@ export function normaliserEntree(brut) {
     date,
     poids: nombreOuNull(brut.poids, { min: 20, max: 400 }),
     calories: nombreOuNull(brut.calories, { min: 0, max: 20000 }),
-    activite: nombreOuNull(brut.activite, { min: 0, max: 1440 }),
-    typeActivite: String(brut.typeActivite ?? '').slice(0, 40),
+    ...activiteNormalisee(brut),
     alcool: nombreOuNull(brut.alcool, { min: 0, max: 60 }),
     cafe: nombreOuNull(brut.cafe, { min: 0, max: 30 }),
     humeur: humeur === null ? null : Math.round(humeur),
@@ -80,6 +99,42 @@ export function normaliserEntree(brut) {
     // appareils ont touché la même journée. Jamais inventé ici — c'est
     // l'appelant qui le pose au moment d'enregistrer.
     maj: horodatageValide(brut.maj) ? brut.maj : null,
+  };
+}
+
+/**
+ * Une journée peut porter plusieurs séances. Les totaux (`activite`,
+ * `sportKcal`) sont recalculés ici à partir de la liste : dérivés d'une
+ * source unique, ils ne peuvent pas diverger. `typeActivite` reste rempli
+ * pour l'affichage compact et les anciens exports.
+ */
+function activiteNormalisee(brut) {
+  const liste = Array.isArray(brut.activites)
+    ? brut.activites
+    : // Format d'avant : une seule séance par journée.
+      brut.activite !== null && brut.activite !== undefined && brut.activite !== ''
+      ? [{ type: brut.typeActivite, minutes: brut.activite, calories: null, estimee: false }]
+      : [];
+
+  const activites = liste
+    .map((a) => ({
+      type: String(a?.type ?? '').slice(0, 40),
+      minutes: nombreOuNull(a?.minutes, { min: 0, max: 1440 }),
+      calories: nombreOuNull(a?.calories, { min: 0, max: 20000 }),
+      estimee: Boolean(a?.estimee),
+    }))
+    // Une ligne sans durée ni calories ni type n'est qu'un formulaire à moitié
+    // rempli : on ne la garde pas.
+    .filter((a) => a.minutes !== null || a.calories !== null || a.type);
+
+  const minutes = activites.map((a) => a.minutes).filter((v) => typeof v === 'number');
+  const kcal = activites.map((a) => a.calories).filter((v) => typeof v === 'number');
+
+  return {
+    activites,
+    activite: minutes.length ? minutes.reduce((x, y) => x + y, 0) : null,
+    typeActivite: activites.map((a) => a.type).filter(Boolean).join(' + ').slice(0, 120),
+    sportKcal: kcal.length ? kcal.reduce((x, y) => x + y, 0) : null,
   };
 }
 
@@ -98,6 +153,7 @@ export function entreeVideOuPas(e) {
     e.poids === null &&
     e.calories === null &&
     e.activite === null &&
+    e.activites.length === 0 &&
     e.alcool === null &&
     e.cafe === null &&
     e.humeur === null &&
@@ -185,6 +241,8 @@ export function bilan(entrees, jours, objectifs = OBJECTIFS_DEFAUT) {
   const calories = valeurs('calories').filter((v) => typeof v === 'number');
   const activite = valeurs('activite');
   const alcool = valeurs('alcool');
+  const sportKcal = valeurs('sportKcal');
+  const sportSaisi = sportKcal.filter((v) => typeof v === 'number');
   const cafe = valeurs('cafe');
   const cafeSaisi = cafe.filter((v) => typeof v === 'number');
   const humeur = valeurs('humeur').filter((v) => typeof v === 'number');
@@ -217,6 +275,10 @@ export function bilan(entrees, jours, objectifs = OBJECTIFS_DEFAUT) {
       parSemaine: somme(activite) / semaines,
       joursActifs: activite.filter((v) => typeof v === 'number' && v > 0).length,
       objectifSemaine: objectifs.activite ?? null,
+      kcalTotal: somme(sportKcal),
+      kcalParJour: moyenne(sportSaisi),
+      joursAvecKcal: sportSaisi.length,
+      seances: jours.reduce((n, d) => n + (entrees[d]?.activites?.length ?? 0), 0),
     },
     alcool: {
       total: totalAlcool,
@@ -351,13 +413,13 @@ export function elaguerSuppressions(suppressions = {}, maxJours = 365) {
 
 /** CSV (séparateur `;`, lisible tel quel par Excel en locale FR). */
 export function versCSV(entrees) {
-  const colonnes = ['date', 'poids_kg', 'calories_kcal', 'activite_min', 'type_activite', 'alcool_verres', 'cafe_tasses', 'humeur_1_5', 'modifie_le', 'note'];
+  const colonnes = ['date', 'poids_kg', 'calories_kcal', 'activite_min', 'type_activite', 'sport_kcal', 'seances', 'alcool_verres', 'cafe_tasses', 'humeur_1_5', 'modifie_le', 'note'];
   const echapper = (v) => {
     const s = v === null || v === undefined ? '' : String(v);
     return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const lignes = entreesTriees(entrees).map((e) =>
-    [e.date, e.poids, e.calories, e.activite, e.typeActivite, e.alcool, e.cafe, e.humeur, e.maj, e.note]
+    [e.date, e.poids, e.calories, e.activite, e.typeActivite, e.sportKcal, encoderSeances(e.activites), e.alcool, e.cafe, e.humeur, e.maj, e.note]
       .map(echapper)
       .join(';'),
   );
@@ -378,6 +440,7 @@ export function depuisCSV(texte) {
     calories: index('calories'),
     activite: index('activite'),
     typeActivite: index('type'),
+    seances: index('seances'),
     alcool: index('alcool'),
     cafe: index('cafe'),
     humeur: index('humeur'),
@@ -389,10 +452,32 @@ export function depuisCSV(texte) {
     const cells = decouper(ligne, sep);
     const brut = { date: cells[iDate] };
     for (const [cle, i] of Object.entries(cols)) if (i !== -1) brut[cle] = cells[i];
+    if (brut.seances) brut.activites = decoderSeances(brut.seances);
     const e = normaliserEntree(brut);
     if (e && !entreeVideOuPas(e)) out.push(e);
   }
   return out;
+}
+
+/**
+ * Les séances tiennent dans une colonne, encodées `type:minutes:kcal:e`,
+ * séparées par `|`. Le tableur garde ainsi des totaux lisibles en colonnes
+ * propres, sans que l'aller-retour ne perde le détail.
+ */
+function encoderSeances(activites = []) {
+  return activites
+    .map((a) => [String(a.type ?? '').replace(/[|:]/g, ' '), a.minutes ?? '', a.calories ?? '', a.estimee ? 'e' : ''].join(':'))
+    .join('|');
+}
+
+function decoderSeances(texte) {
+  return String(texte)
+    .split('|')
+    .filter(Boolean)
+    .map((bout) => {
+      const [type, minutes, calories, estimee] = bout.split(':');
+      return { type, minutes, calories, estimee: estimee === 'e' };
+    });
 }
 
 function decouper(ligne, sep) {

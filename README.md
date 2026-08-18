@@ -1,6 +1,6 @@
 # LagoonWatcher
 
-Mini application perso pour noter chaque jour **les calories, le poids, l'activité, l'alcool, le café et l'humeur**, et voir ce que ça donne sur la durée.
+Mini application perso pour noter chaque jour **les calories, le poids, les activités sportives, l'alcool, le café et l'humeur**, et voir ce que ça donne sur la durée.
 
 Pas de compte, pas de serveur, pas de dépendance : une page web statique qui stocke tout dans le navigateur et fonctionne hors ligne.
 
@@ -23,7 +23,7 @@ npm run serve      # puis ouvrir http://localhost:8080
 
 | Écran | À quoi il sert |
 |---|---|
-| **Jour** | La saisie. Une carte par métrique, avec des raccourcis (+400 kcal, 45 min, −/+ un verre ou un café, 5 humeurs). Chaque intitulé rappelle où on en est : dernière pesée, moyenne 7 jours, total de la semaine. |
+| **Jour** | La saisie. Une carte par métrique, avec des raccourcis (+400 kcal, −/+ un verre ou un café, 5 humeurs) et autant de séances de sport que nécessaire dans la journée. Chaque intitulé rappelle où on en est : dernière pesée, moyenne 7 jours, total de la semaine. |
 | **Bilan** | Poids en chiffre phare avec sa tendance sur 7 jours, quatre tuiles de synthèse, puis un graphique par métrique. La période (7 j / 30 j / 90 j / 1 an) s'applique à tout l'écran. |
 | **Journal** | Tout l'historique en tableau. Une date se touche pour revenir la corriger. |
 | **Réglages** | Objectifs, thème, export / import, suppression. |
@@ -33,6 +33,9 @@ Détails qui comptent à l'usage :
 - **La saisie est enregistrée au fil de la frappe** ; le bouton *Enregistrer* est là pour la tranquillité, pas par obligation.
 - **Une journée à zéro n'est pas une journée vide.** « 0 verre », « 0 café » et « repos » sont des informations : elles comptent dans les séries de jours sans alcool et dans les jours actifs. Un jour non saisi, lui, casse la série — on ne peut pas créditer une journée dont on ne sait rien.
 - **On peut revenir en arrière** avec les flèches ‹ › ou le sélecteur de date (double-clic sur le libellé pour revenir à aujourd'hui).
+- **Plusieurs séances par jour.** Chacune a son type, sa durée et sa dépense en calories ; les totaux du jour en découlent. « Journée sans sport » enregistre zéro minute, ce qui n'est pas la même chose qu'une journée non renseignée.
+- **Les calories dépensées sont estimées, puis modifiables.** L'estimation vient de l'intensité du type d'activité (valeurs MET usuelles), de la durée et du poids le plus récent connu. Elle s'affiche en pointillé avec un « ≈ » : c'est une approximation, pas une mesure. Dès que la valeur est corrigée à la main, elle n'est plus jamais recalculée. Sans poids saisi, rien n'est estimé — un champ vide vaut mieux qu'un chiffre inventé.
+- **Le graphique « absorbées / dépensées »** met les deux séries côte à côte sur une seule échelle, avec légende. Attention à la lecture : le sport n'est qu'une part de la dépense quotidienne, le corps brûle bien davantage au repos. Ce n'est donc pas une balance énergétique.
 - **Le poids se lit en tendance.** La variation d'un jour à l'autre, c'est surtout de l'eau : le bilan compare deux moyennes de 7 jours et le graphique superpose une moyenne glissante.
 - **Les liens entre métriques** (alcool ↔ humeur, café ↔ humeur, activité ↔ humeur…) n'apparaissent qu'à partir de 8 journées croisées, avec le coefficient et le nombre de jours. C'est une coïncidence mesurée, pas une explication.
 
@@ -118,7 +121,7 @@ src/charts.js              graphiques SVG (ligne, colonnes, points) + survol
 src/app.js                 câblage de l'interface
 sw.js, manifest.webmanifest  installation et fonctionnement hors ligne
 scripts/build-solo.mjs     assemblage de la version en un seul fichier
-tests/model.test.js        32 tests sur le modèle
+tests/model.test.js        36 tests sur le modèle
 ```
 
 Les calculs sont séparés de l'affichage : `model.js` et `dates.js` ne touchent ni au DOM ni au stockage, ce qui rend les tests directs (`node --test`). Les graphiques sont dessinés à la main en SVG — une seule série par graphique, palette validée en clair comme en sombre, étiquetage sélectif, et le Journal sert de vue tableau équivalente.

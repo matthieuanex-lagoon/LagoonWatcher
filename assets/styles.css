@@ -501,6 +501,117 @@ label {
   color: var(--texte-alerte);
 }
 
+/* ── Liste des activités ───────────────────────────────────────────── */
+
+.seance {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px 84px 36px;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.seance select,
+.seance input {
+  min-height: 40px;
+  padding: 6px 8px;
+  font-size: 0.88rem;
+}
+
+.seance .kcal {
+  position: relative;
+}
+
+/* Une estimation se voit : le chiffre reste modifiable, mais on ne le fait
+   pas passer pour une valeur saisie. */
+.seance .kcal[data-estimee='true'] input {
+  color: var(--encre-2);
+  border-style: dashed;
+}
+
+.seance .kcal .marque-estimee {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  transform: translateY(-50%);
+  font-size: 0.7rem;
+  color: var(--encre-3);
+  pointer-events: none;
+}
+
+.seance .retirer {
+  min-height: 36px;
+  min-width: 32px;
+  padding: 4px;
+  background: none;
+  border: 0;
+  border-radius: var(--rayon-s);
+  color: var(--encre-3);
+  font-size: 1.05rem;
+  cursor: pointer;
+}
+
+.seance .retirer:hover {
+  background: var(--surface-creuse);
+  color: var(--texte-alerte);
+}
+
+.entete-seances {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px 84px 36px;
+  gap: 6px;
+  margin-bottom: 4px;
+  font-size: 0.68rem;
+  color: var(--encre-3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.aucune-seance {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  color: var(--encre-3);
+}
+
+/* ── Légende ───────────────────────────────────────────────────────── */
+
+.legende {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  color: var(--encre-2);
+}
+
+.legende span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.legende i {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  flex: none;
+}
+
+.infobulle .ligne-bulle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.infobulle .ligne-bulle i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex: none;
+}
+
 /* ── Bilan ─────────────────────────────────────────────────────────── */
 
 .filtres {

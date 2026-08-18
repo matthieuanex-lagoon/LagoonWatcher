@@ -1,6 +1,8 @@
-// Graphiques en SVG, sans dépendance. Une seule série par graphique (donc pas
-// de légende : le titre de la carte dit ce qui est tracé), survol avec repère
-// vertical + infobulle, et le Journal sert de vue tableau équivalente.
+// Graphiques en SVG, sans dépendance. Une série par graphique en règle
+// générale — le titre de la carte dit alors ce qui est tracé, sans légende.
+// La comparaison absorbé / dépensé fait exception : deux séries sur une seule
+// échelle (jamais deux axes), et là une légende est obligatoire. Survol avec
+// repère vertical + infobulle, et le Journal sert de vue tableau équivalente.
 
 import { formatAxisDay, formatDay } from './dates.js';
 
@@ -62,7 +64,9 @@ function cheminColonne(x, y, largeur, hauteur, rayon = 4) {
  *
  * @param {HTMLElement} hote
  * @param {object} config
- * @param {'ligne'|'colonnes'|'points'} config.type
+ * @param {'ligne'|'colonnes'|'points'|'colonnes-groupees'} config.type
+ * @param {{nom:string,couleur:string,points:{date:string,valeur:number|null}[]}[]} [config.series]
+ *        deux séries comparées sur la même échelle (jamais deux axes)
  * @param {{date: string, valeur: number|null}[]} config.points
  * @param {string} config.couleur       variable CSS de la série
  * @param {string|((v:number)=>string)} [config.unite] texte ou fonction (pour le pluriel)
@@ -91,7 +95,8 @@ export function dessinerGraphique(hote, config) {
 function rendre(hote, config) {
   const {
     type = 'ligne',
-    points = [],
+    series = null,
+    points = series?.[0]?.points ?? [],
     couleur = 'var(--serie-1)',
     unite = '',
     format = (v) => arrondir(v),
@@ -106,7 +111,7 @@ function rendre(hote, config) {
 
   hote.textContent = '';
   const largeur = Math.max(hote.clientWidth || hote.offsetWidth || 320, 240);
-  const renseignes = points.filter((p) => typeof p.valeur === 'number');
+  const renseignes = (series ? series.flatMap((s) => s.points) : points).filter((p) => typeof p.valeur === 'number');
 
   if (!renseignes.length) {
     const vide = document.createElement('p');
@@ -122,9 +127,9 @@ function rendre(hote, config) {
     l: largeur - MARGE.gauche - MARGE.droite,
     h: hauteur - MARGE.haut - MARGE.bas,
   };
-  const valeursEchelle = points.map((p) => p.valeur);
+  const valeursEchelle = series ? series.flatMap((s) => s.points.map((p) => p.valeur)) : points.map((p) => p.valeur);
   if (objectif) valeursEchelle.push(objectif.valeur);
-  const [yMin, yMax] = domaine(valeursEchelle, { zero: zero || type === 'colonnes', force: yDomaine });
+  const [yMin, yMax] = domaine(valeursEchelle, { zero: zero || type.startsWith('colonnes'), force: yDomaine });
   const y = (v) => aire.y + aire.h - ((v - yMin) / (yMax - yMin || 1)) * aire.h;
   const bande = aire.l / points.length;
   const x = (i) => aire.x + bande * (i + 0.5);
@@ -168,7 +173,23 @@ function rendre(hote, config) {
 
   const gData = el('g', { class: 'donnees' });
 
-  if (type === 'colonnes') {
+  if (type === 'colonnes-groupees' && series) {
+    // Chaque jour porte deux colonnes voisines. L'écart de 2 px les sépare —
+    // c'est le fond qui fait la séparation, jamais un contour.
+    const largeurGroupe = Math.min(26, Math.max(3, bande - 3));
+    const largeurCol = Math.max(1.5, (largeurGroupe - 2) / 2);
+    for (const [rang, serieCourante] of series.entries()) {
+      const g = el('g', { class: 'serie' });
+      g.style.setProperty('--serie', serieCourante.couleur);
+      for (const [i, pt] of serieCourante.points.entries()) {
+        if (typeof pt.valeur !== 'number' || pt.valeur <= 0) continue;
+        const gauche = x(i) - largeurGroupe / 2 + rang * (largeurCol + 2);
+        const hautCol = Math.max(1.5, y(Math.min(yMin, 0)) - y(pt.valeur));
+        g.append(el('path', { d: cheminColonne(gauche, y(pt.valeur), largeurCol, hautCol, 3), class: 'colonne' }));
+      }
+      gData.append(g);
+    }
+  } else if (type === 'colonnes') {
     const largeurCol = Math.min(24, Math.max(2, bande - 2)); // l'écart de 2px sépare les voisines
     for (const [i, p] of points.entries()) {
       if (typeof p.valeur !== 'number' || p.valeur === 0) continue;
@@ -246,7 +267,7 @@ function rendre(hote, config) {
     .filter((p) => typeof p.valeur === 'number')
     .reduce((a, b) => (b.valeur > a.valeur ? b : a));
   const gEtiquettes = el('g', { class: 'etiquettes' });
-  for (const p of dedoublonner([dernier, extreme])) {
+  for (const p of series ? [] : dedoublonner([dernier, extreme])) {
     const t = el('text', {
       x: Math.min(Math.max(x(p.i), aire.x + 4), aire.x + aire.l - 4),
       y: Math.max(y(p.valeur) - 10, aire.y + 9),
@@ -276,7 +297,7 @@ function rendre(hote, config) {
     repere.setAttribute('x1', x(i));
     repere.setAttribute('x2', x(i));
     repere.setAttribute('visibility', 'visible');
-    if (typeof p.valeur === 'number') {
+    if (!series && typeof p.valeur === 'number') {
       marqueur.setAttribute('cx', x(i));
       marqueur.setAttribute('cy', y(p.valeur));
       marqueur.setAttribute('visibility', 'visible');
@@ -285,10 +306,25 @@ function rendre(hote, config) {
     bulle.innerHTML = '';
     const jour = document.createElement('strong');
     jour.textContent = formatDay(p.date, { relative: false });
-    const val = document.createElement('span');
-    val.textContent =
-      typeof p.valeur === 'number' ? `${format(p.valeur)}${uniteDe(unite, p.valeur)}` : 'non renseigné';
-    bulle.append(jour, val);
+    bulle.append(jour);
+    if (series) {
+      for (const s of series) {
+        const v = s.points[i]?.valeur;
+        const ligne = document.createElement('span');
+        ligne.className = 'ligne-bulle';
+        const pastille = document.createElement('i');
+        pastille.style.background = s.couleur;
+        const texte = document.createElement('span');
+        texte.textContent = `${s.nom} : ${typeof v === 'number' ? `${format(v)}${uniteDe(unite, v)}` : '—'}`;
+        ligne.append(pastille, texte);
+        bulle.append(ligne);
+      }
+    } else {
+      const val = document.createElement('span');
+      val.textContent =
+        typeof p.valeur === 'number' ? `${format(p.valeur)}${uniteDe(unite, p.valeur)}` : 'non renseigné';
+      bulle.append(val);
+    }
     const gauche = Math.min(Math.max(x(i) - bulle.offsetWidth / 2, 4), largeur - bulle.offsetWidth - 4);
     bulle.style.left = `${gauche}px`;
     const ancre = typeof p.valeur === 'number' ? y(p.valeur) - bulle.offsetHeight - 12 : aire.y;

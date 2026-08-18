@@ -76,20 +76,16 @@
                 <div class="pastille" aria-hidden="true">🏃</div>
                 <div class="corps">
                   <div class="titre-metrique">
-                    <label for="champ-activite" style="margin: 0">Activité</label>
+                    <span style="font-weight: 600">Activité</span>
                     <span class="indice" id="indice-activite"></span>
                   </div>
-                  <div class="rangee-champ">
-                    <input type="number" id="champ-activite" name="activite" step="5" min="0" max="1440" inputmode="numeric" placeholder="—" />
-                    <span class="unite">min</span>
-                    <select id="champ-type-activite" name="typeActivite" aria-label="Type d'activité"></select>
-                  </div>
-                  <div class="puces" id="ajouts-activite" role="group" aria-label="Durées rapides">
-                    <button type="button" class="puce" data-valeur="0">repos</button>
-                    <button type="button" class="puce" data-valeur="30">30</button>
-                    <button type="button" class="puce" data-valeur="45">45</button>
-                    <button type="button" class="puce" data-valeur="60">60</button>
-                    <button type="button" class="puce" data-valeur="90">90</button>
+                  <div id="liste-activites"></div>
+                  <p class="discret" id="sans-poids" hidden style="margin: 0 0 8px">
+                    Renseignez votre poids ci-dessus pour que les calories dépensées soient estimées.
+                  </p>
+                  <div class="puces">
+                    <button type="button" class="puce" id="ajouter-activite">+ Ajouter une activité</button>
+                    <button type="button" class="puce" id="activite-repos" data-valeur="0">journée sans sport</button>
                   </div>
                 </div>
               </div>
