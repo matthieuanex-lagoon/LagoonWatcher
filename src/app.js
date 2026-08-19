@@ -47,7 +47,7 @@ import {
  * version tourne réellement sur un appareil, et un cache périmé se diagnostique
  * à l'aveugle.
  */
-export const VERSION_APPLI = '2026-08-18 · 12';
+export const VERSION_APPLI = '2026-08-18 · 13';
 
 const $ = (sel, racine = document) => racine.querySelector(sel);
 const $$ = (sel, racine = document) => [...racine.querySelectorAll(sel)];
@@ -1122,6 +1122,15 @@ async function verifierStockage() {
   rendreEtatStockage();
 }
 
+/** L'appli tourne-t-elle dans sa propre fenêtre, donc installée ? */
+function estInstallee() {
+  return (
+    window.matchMedia?.('(display-mode: standalone)').matches ||
+    window.matchMedia?.('(display-mode: window-controls-overlay)').matches ||
+    navigator.standalone === true
+  );
+}
+
 function rendreEtatStockage() {
   const zone = $('#etat-stockage');
   if (!zone) return;
@@ -1134,6 +1143,13 @@ function rendreEtatStockage() {
   if (etatStockage.persistant) {
     zone.textContent = `Stockage durable accordé par le navigateur${taille}.`;
     zone.dataset.etat = 'ok';
+  } else if (estInstallee()) {
+    // Conseiller d'installer une appli déjà installée ne sert à rien. À ce
+    // stade, la cause la plus courante est un navigateur réglé pour effacer
+    // les données des sites à la fermeture — réglage qui interdit aussi la
+    // persistance, et qu'une installation ne surmonte pas.
+    zone.textContent = `Stockage non garanti malgré l'installation${taille}. Vérifiez que le navigateur n'est pas réglé pour effacer les données des sites à la fermeture : ce réglage empêche aussi cette protection.`;
+    zone.dataset.etat = 'attente';
   } else {
     zone.textContent = `Stockage non garanti : ce navigateur peut effacer les données du site${taille}. Installez l'appli sur l'appareil, et gardez la sauvegarde en ligne active.`;
     zone.dataset.etat = 'attente';
