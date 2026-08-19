@@ -220,6 +220,17 @@ a {
   font-size: 0.8rem;
 }
 
+/* Message d'accueil sur un appareil sans données : il sert autant à une
+   première utilisation qu'après un effacement par le navigateur. */
+.carte-accueil[hidden] {
+  display: none;
+}
+
+.carte-accueil {
+  border-color: color-mix(in srgb, var(--serie-poids) 30%, transparent);
+  background: color-mix(in srgb, var(--serie-poids) 6%, var(--surface));
+}
+
 /* ── Contrôles ─────────────────────────────────────────────────────── */
 
 button,

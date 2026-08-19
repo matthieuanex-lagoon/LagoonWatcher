@@ -96,6 +96,11 @@ L'appli demande donc au navigateur un stockage durable
 Sauvegarde`. Si elle est refusée, la ligne le dit : c'est l'information qui
 manque quand des données disparaissent sans explication.
 
+Un appareil sans aucune journée affiche la marche à suivre plutôt qu'un écran
+vide : coller la clé pour restaurer, ou commencer à saisir. Le message sert
+autant à une première utilisation qu'au lendemain d'un effacement, et disparaît
+dès qu'une sauvegarde est configurée ou qu'une journée est saisie.
+
 En pratique, après un tel effacement, recoller la clé suffit : les journées
 reviennent du gist. La clé, elle, ne peut pas se restaurer toute seule —
 puisqu'elle est délibérément rangée hors des données synchronisées. Autant la

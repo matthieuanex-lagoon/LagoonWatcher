@@ -47,7 +47,7 @@ import {
  * version tourne réellement sur un appareil, et un cache périmé se diagnostique
  * à l'aveugle.
  */
-export const VERSION_APPLI = '2026-08-18 · 11';
+export const VERSION_APPLI = '2026-08-18 · 12';
 
 const $ = (sel, racine = document) => racine.querySelector(sel);
 const $$ = (sel, racine = document) => [...racine.querySelectorAll(sel)];
@@ -342,6 +342,16 @@ function rendreSeances() {
   rendreEtatSeances();
 }
 
+/**
+ * Un appareil sans aucune journée : soit c'est un début, soit le navigateur a
+ * effacé les données du site — ce qui arrive. Dans les deux cas, la marche à
+ * suivre tient en une phrase, et vaut mieux qu'un écran vide sans explication.
+ */
+function rendreAccueilVide() {
+  const aucuneDonnee = Object.keys(etat.entrees).length === 0;
+  $('#accueil-vide').hidden = !(aucuneDonnee && !configSync);
+}
+
 function rendreJour() {
   const e = entreeCourante();
   $('#libelle-jour').textContent = formatDay(dateCourante);
@@ -365,6 +375,7 @@ function rendreJour() {
   $('#etat-sauvegarde').dataset.etat = '';
 
   rendreIndices();
+  rendreAccueilVide();
 }
 
 /**
@@ -1470,6 +1481,10 @@ function brancher() {
     const fichier = e.target.files?.[0];
     e.target.value = '';
     if (fichier) await importerFichier(fichier);
+  });
+  $('#aller-sauvegarde').addEventListener('click', () => {
+    afficherVue('reglages');
+    $('#champ-jeton').focus();
   });
   $('#sync-connecter').addEventListener('click', connecterSync);
   $('#champ-jeton').addEventListener('keydown', (e) => {
