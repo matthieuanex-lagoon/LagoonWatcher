@@ -4,6 +4,8 @@
 import { dessinerGraphique, dessinerSparkline } from './charts.js';
 import { addDays, formatDay, lastNDays, startOfWeek, toISO, todayISO } from './dates.js';
 import {
+  alerteAlcool,
+  alerteCalories,
   bilan,
   correlation,
   depuisCSV,
@@ -45,7 +47,7 @@ import {
  * version tourne réellement sur un appareil, et un cache périmé se diagnostique
  * à l'aveugle.
  */
-export const VERSION_APPLI = '2026-08-18 · 9';
+export const VERSION_APPLI = '2026-08-18 · 10';
 
 const $ = (sel, racine = document) => racine.querySelector(sel);
 const $$ = (sel, racine = document) => [...racine.querySelectorAll(sel)];
@@ -358,6 +360,7 @@ function rendreJour() {
   $('#alcool-zero').setAttribute('aria-pressed', String(e.alcool === 0));
   rendreSeances();
   $('#cafe-zero').setAttribute('aria-pressed', String(e.cafe === 0));
+  rafraichirAlertes();
   $('#etat-sauvegarde').textContent = etat.entrees[dateCourante] ? 'Journée enregistrée' : '';
   $('#etat-sauvegarde').dataset.etat = '';
 
@@ -373,6 +376,7 @@ function rendreJour() {
 function rendreIndices() {
   const { entrees, objectifs } = etat;
   $('#effacer-jour').disabled = !entrees[dateCourante];
+  rafraichirAlertes();
   const semaine = joursDepuis(startOfWeek(dateCourante), dateCourante);
   const sept = joursDepuis(addDays(dateCourante, -6), dateCourante);
 
@@ -501,6 +505,43 @@ function validerSaisieEnAttente() {
   minuteurAuto = null;
   jourEnAttente = null;
   majEntree(lireFormulaire(), { rerendre: false, silencieux: true, date: cible });
+}
+
+/**
+ * Teinte les champs du jour selon leur niveau d'alerte. On lit la valeur
+ * affichée, pas la valeur enregistrée : la couleur suit la frappe, sans
+ * attendre le délai d'enregistrement.
+ */
+function rafraichirAlertes() {
+  const lireChamp = (sel) => {
+    const brut = $(sel).value.trim();
+    if (brut === '') return null;
+    const n = Number(brut.replace(',', '.'));
+    return Number.isFinite(n) ? n : null;
+  };
+
+  majAttribut($('#alerte-alcool'), 'alerte', alerteAlcool(lireChamp('#champ-alcool')));
+
+  const calories = lireChamp('#champ-calories');
+  const objectif = etat.objectifs.calories;
+  const alerte = alerteCalories(calories, objectif);
+  majAttribut($('#alerte-calories'), 'alerte', alerte);
+
+  // La couleur ne dit pas de combien on dépasse : l'écart l'écrit.
+  const ecart = $('#ecart-calories');
+  if (alerte) {
+    ecart.textContent = `+${nb(calories - objectif)} kcal au-dessus de l'objectif`;
+    ecart.dataset.alerte = alerte;
+    ecart.hidden = false;
+  } else {
+    ecart.hidden = true;
+    delete ecart.dataset.alerte;
+  }
+}
+
+function majAttribut(element, nom, valeur) {
+  if (valeur === null || valeur === undefined) delete element.dataset[nom];
+  else element.dataset[nom] = valeur;
 }
 
 /** Le curseur est-il dans un champ du formulaire du jour ? */
@@ -1304,7 +1345,10 @@ function brancher() {
   // Champs du formulaire : enregistrement différé pendant la frappe,
   // immédiat quand on quitte le champ.
   for (const sel of ['#champ-poids', '#champ-calories', '#champ-alcool', '#champ-cafe', '#champ-note']) {
-    $(sel).addEventListener('input', enregistrementDiffere);
+    $(sel).addEventListener('input', () => {
+      rafraichirAlertes();
+      enregistrementDiffere();
+    });
     $(sel).addEventListener('change', () => {
       clearTimeout(minuteurAuto);
       majEntree(lireFormulaire());

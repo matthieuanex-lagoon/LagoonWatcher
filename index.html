@@ -64,10 +64,11 @@
                     <label for="champ-calories" style="margin: 0">Calories</label>
                     <span class="indice" id="indice-calories"></span>
                   </div>
-                  <div class="rangee-champ">
+                  <div class="rangee-champ champ-alerte" id="alerte-calories">
                     <input type="number" id="champ-calories" name="calories" step="10" min="0" max="20000" inputmode="numeric" placeholder="—" />
                     <span class="unite">kcal</span>
                   </div>
+                  <p class="discret ecart-objectif" id="ecart-calories" hidden style="margin: 6px 0 0"></p>
                   <div class="puces" id="ajouts-calories" role="group" aria-label="Ajouter rapidement des calories">
                     <button type="button" class="puce" data-ajout="200">+200</button>
                     <button type="button" class="puce" data-ajout="400">+400</button>
@@ -104,7 +105,7 @@
                     <label for="champ-alcool" style="margin: 0">Alcool</label>
                     <span class="indice" id="indice-alcool"></span>
                   </div>
-                  <div class="compteur">
+                  <div class="compteur champ-alerte" id="alerte-alcool">
                     <button type="button" class="bouton icone" id="alcool-moins" aria-label="Un verre de moins">−</button>
                     <input type="number" id="champ-alcool" name="alcool" step="1" min="0" max="60" inputmode="numeric" placeholder="—" style="max-width: 96px; text-align: center" />
                     <button type="button" class="bouton icone" id="alcool-plus" aria-label="Un verre de plus">+</button>

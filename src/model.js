@@ -249,6 +249,27 @@ export function tendancePoids(entrees, finIso = todayISO(), fenetre = 7) {
   };
 }
 
+/**
+ * Paliers d'alerte de la saisie du jour. Trois niveaux, du plus léger au plus
+ * fort : `attention`, `serieux`, `critique`. `null` quand il n'y a rien à
+ * signaler — un verre à zéro ou une journée sous l'objectif.
+ */
+export function alerteAlcool(verres) {
+  if (typeof verres !== 'number' || verres <= 0) return null;
+  if (verres <= 1) return 'attention';
+  if (verres <= 2) return 'serieux';
+  return 'critique';
+}
+
+/**
+ * L'objectif calorique est un plafond : il n'y a dépassement qu'au-dessus,
+ * et un dépassement de 300 pile reste dans la catégorie « moins de 300 ».
+ */
+export function alerteCalories(calories, objectif, seuil = 300) {
+  if (typeof calories !== 'number' || !objectif || calories <= objectif) return null;
+  return calories - objectif > seuil ? 'critique' : 'serieux';
+}
+
 /** Bilan d'une période, prêt à afficher. */
 export function bilan(entrees, jours, objectifs = OBJECTIFS_DEFAUT) {
   const semaines = Math.max(jours.length / 7, 1 / 7);

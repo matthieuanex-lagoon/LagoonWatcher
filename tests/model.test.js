@@ -3,6 +3,8 @@ import { test } from 'node:test';
 
 import { addDays, daySpan, formatAxisDay, lastNDays, startOfWeek, toISO } from '../src/dates.js';
 import {
+  alerteAlcool,
+  alerteCalories,
   appliquerSuppressions,
   bilan,
   correlation,
@@ -445,4 +447,25 @@ test('CSV : le stress fait l\'aller-retour', () => {
   const entrees = jeu({ '2026-08-18': { stress: 4, humeur: 2, maj: '2026-08-18T09:00:00.000Z' } });
   const relu = depuisCSV(versCSV(entrees));
   assert.deepEqual(relu[0], entrees['2026-08-18']);
+});
+
+
+test('alerte alcool : trois paliers, rien à zéro', () => {
+  assert.equal(alerteAlcool(0), null, 'une journée sans alcool ne s\'alarme pas');
+  assert.equal(alerteAlcool(null), null);
+  assert.equal(alerteAlcool(1), 'attention');
+  assert.equal(alerteAlcool(2), 'serieux');
+  assert.equal(alerteAlcool(3), 'critique');
+  assert.equal(alerteAlcool(10), 'critique');
+});
+
+test('alerte calories : seulement au-dessus de l\'objectif', () => {
+  assert.equal(alerteCalories(2000, 2200), null);
+  assert.equal(alerteCalories(2200, 2200), null, 'pile à l\'objectif, pas de dépassement');
+  assert.equal(alerteCalories(2201, 2200), 'serieux');
+  assert.equal(alerteCalories(2500, 2200), 'serieux', 'dépassement de 300 pile : encore orange');
+  assert.equal(alerteCalories(2501, 2200), 'critique');
+  // Sans objectif défini, rien à comparer.
+  assert.equal(alerteCalories(5000, null), null);
+  assert.equal(alerteCalories(null, 2200), null);
 });

@@ -27,6 +27,7 @@
 
   --bon: #0ca30c;
   --attention: #fab219;
+  --serieux: #ec835a;
   --critique: #d03b3b;
   --texte-succes: #006300;
   --texte-alerte: #a52020;
@@ -319,6 +320,34 @@ label {
   font-weight: 500;
   color: var(--encre-2);
   margin-bottom: 5px;
+}
+
+/* ── Alertes de saisie ─────────────────────────────────────────────── */
+
+/* Trois paliers, teintés dans la surface du thème : le mélange se refait
+   automatiquement en clair comme en sombre, sans deux jeux de couleurs.
+   La couleur ne porte jamais l'information seule — le nombre saisi et,
+   pour les calories, l'écart écrit à côté disent la même chose. */
+.champ-alerte[data-alerte] input {
+  border-color: color-mix(in srgb, var(--ton-alerte) 55%, transparent);
+  background: color-mix(in srgb, var(--ton-alerte) 22%, var(--surface));
+}
+
+.champ-alerte[data-alerte='attention'] {
+  --ton-alerte: var(--attention);
+}
+.champ-alerte[data-alerte='serieux'] {
+  --ton-alerte: var(--serieux);
+}
+.champ-alerte[data-alerte='critique'] {
+  --ton-alerte: var(--critique);
+}
+
+/* L'écart chiffré reprend le même palier, en texte lisible. */
+.ecart-objectif[data-alerte='serieux'],
+.ecart-objectif[data-alerte='critique'] {
+  color: var(--texte-alerte);
+  font-weight: 600;
 }
 
 /* ── Navigation de date ────────────────────────────────────────────── */
