@@ -100,4 +100,24 @@ export function depuisJSON(texte) {
   };
 }
 
+/**
+ * Demande au navigateur de ne pas évincer les données de ce site. Sans ça,
+ * Chrome et Safari peuvent les effacer sous pression de stockage ou après une
+ * période d'inactivité — et tout part d'un coup, y compris la clé de
+ * sauvegarde en ligne. La demande est silencieuse sur Chrome (accordée selon
+ * l'usage du site, garantie pour une appli installée) ; ailleurs elle peut
+ * être refusée sans que ce soit une erreur.
+ */
+export async function assurerStockagePersistant() {
+  try {
+    if (!navigator.storage?.persist) return { disponible: false };
+    const dejaAccorde = await navigator.storage.persisted?.();
+    const persistant = dejaAccorde || (await navigator.storage.persist());
+    const { usage, quota } = (await navigator.storage.estimate?.()) ?? {};
+    return { disponible: true, persistant, usage, quota };
+  } catch {
+    return { disponible: false };
+  }
+}
+
 export { CLE };

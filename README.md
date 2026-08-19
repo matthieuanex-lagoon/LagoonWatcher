@@ -84,6 +84,23 @@ Ce qui rend la chose sûre à l'usage :
 - **Effacer une journée se propage.** La suppression laisse une trace datée, si bien que l'appareil d'en face ne la renvoie pas au prochain échange. Ressaisir la journée plus tard annule la trace : c'est toujours la dernière action qui gagne. Ces traces sont oubliées au bout d'un an.
 - **Une récupération n'écrase jamais une saisie en cours** : tant que le curseur est dans un champ, la récupération automatique repasse plus tard ; et une modification encore dans son délai d'attente est validée avant la fusion, pour qu'elle porte son horodatage et gagne l'arbitrage.
 
+### Quand le navigateur efface tout
+
+`localStorage` n'est pas un coffre-fort : Chrome et Safari peuvent effacer les
+données d'un site sous pression de stockage, après une longue inactivité, ou
+parce que l'utilisateur a réglé son navigateur pour nettoyer à la fermeture.
+Quand ça arrive, **tout part ensemble** — journées et clé de sauvegarde.
+
+L'appli demande donc au navigateur un stockage durable
+(`navigator.storage.persist()`) et affiche sa réponse dans `Réglages →
+Sauvegarde`. Si elle est refusée, la ligne le dit : c'est l'information qui
+manque quand des données disparaissent sans explication.
+
+En pratique, après un tel effacement, recoller la clé suffit : les journées
+reviennent du gist. La clé, elle, ne peut pas se restaurer toute seule —
+puisqu'elle est délibérément rangée hors des données synchronisées. Autant la
+garder dans un gestionnaire de mots de passe.
+
 À savoir : un gist privé n'est pas chiffré. Il est invisible pour les autres, mais lisible par GitHub. Pour de la donnée de santé que l'on préfère illisible côté serveur, il faudrait ajouter un chiffrement par mot de passe avant l'envoi.
 
 ## Savoir quelle version tourne

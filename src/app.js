@@ -32,7 +32,7 @@ import {
   TYPES_ACTIVITE,
   versCSV,
 } from './model.js';
-import { charger, depuisJSON, sauver, versJSON } from './store.js';
+import { assurerStockagePersistant, charger, depuisJSON, sauver, versJSON } from './store.js';
 import {
   chargerConfigSync,
   connecterGist,
@@ -47,7 +47,7 @@ import {
  * version tourne réellement sur un appareil, et un cache périmé se diagnostique
  * à l'aveugle.
  */
-export const VERSION_APPLI = '2026-08-18 · 10';
+export const VERSION_APPLI = '2026-08-18 · 11';
 
 const $ = (sel, racine = document) => racine.querySelector(sel);
 const $$ = (sel, racine = document) => [...racine.querySelectorAll(sel)];
@@ -1018,6 +1018,7 @@ function rendreReglages() {
   appliquerTheme();
 
   rendreSync();
+  rendreEtatStockage();
   $('#version-appli').textContent = `Version ${VERSION_APPLI}`;
   const liste = entreesTriees(etat.entrees);
   $('#resume-donnees').textContent = liste.length
@@ -1096,6 +1097,36 @@ async function importerFichier(fichier) {
   rendreReglages();
   toast(`${res.ajoutees} ajoutée(s), ${res.misesAJour} mise(s) à jour${res.ignorees ? `, ${res.ignorees} ignorée(s)` : ''}.`);
   envoiDiffere();
+}
+
+/* ── Durabilité du stockage ────────────────────────────────────────── */
+
+// Ce que le navigateur a répondu à la demande de stockage persistant. Affiché
+// dans les réglages : quand des données disparaissent, savoir si le navigateur
+// s'autorisait à les évincer évite des heures de conjectures.
+let etatStockage = { disponible: false };
+
+async function verifierStockage() {
+  etatStockage = await assurerStockagePersistant();
+  rendreEtatStockage();
+}
+
+function rendreEtatStockage() {
+  const zone = $('#etat-stockage');
+  if (!zone) return;
+  if (!etatStockage.disponible) {
+    zone.textContent = 'Ce navigateur ne dit pas si les données sont protégées de son propre nettoyage.';
+    zone.dataset.etat = '';
+    return;
+  }
+  const taille = etatStockage.usage ? ` · ${nb(etatStockage.usage / 1024)} Ko utilisés` : '';
+  if (etatStockage.persistant) {
+    zone.textContent = `Stockage durable accordé par le navigateur${taille}.`;
+    zone.dataset.etat = 'ok';
+  } else {
+    zone.textContent = `Stockage non garanti : ce navigateur peut effacer les données du site${taille}. Installez l'appli sur l'appareil, et gardez la sauvegarde en ligne active.`;
+    zone.dataset.etat = 'attente';
+  }
 }
 
 /* ── Mise à jour de l'appli ────────────────────────────────────────── */
@@ -1536,6 +1567,7 @@ if (configSync) {
 }
 
 verifierVersion();
+verifierStockage();
 setInterval(() => {
   if (!document.hidden) verifierVersion();
 }, PERIODE_VERSION);
